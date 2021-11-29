@@ -15,7 +15,7 @@ from syconn.proc.meshes import write_mesh2kzip
 from syconn.handler.basics import load_pkl2obj
 from sklearn.neighbors import KDTree
 from scipy.spatial import cKDTree
-from knossos_utils.skeleton_utils import load_skeleton
+from knossos_utils.skeleton_utils import load_skeleton, write_skeleton
 from syconn.reps.super_segmentation_helper import map_myelin2coords, majorityvote_skeleton_property
 
 from tqdm import tqdm
@@ -85,6 +85,7 @@ def anno_skeleton2np(a_obj, scaling, verbose=False):
     # use a_end and d_end as axon and dendrite label, but not as starting locations
     a_node_labels[a_node_labels == 13] = 0  # convert to dendrite
     a_node_labels[a_node_labels == 14] = 1  # convert to axon
+    a_node_labels[a_node_labels == 15] = 2  # convert to soma
     return a_node_coords, a_edges, a_node_labels, a_node_labels_raw, g, a_node_labels_orig
 
 
@@ -95,18 +96,26 @@ def labels2mesh(args):
             kzip_path: path to current sso.
             out_path: path to folder where output should be saved.
     """
-    kzip_path, out_path, version, overwrite = args
+    kzip_path, out_path, version, overwrite, color_mode = args
     if 'areaxfs3' in global_params.wd:
         sso_id = int(re.findall(r"(\d+).\d+.k.zip", os.path.split(kzip_path)[1])[0])
     else:
         sso_id = int(re.findall(r"_(\d+)", os.path.split(kzip_path)[1])[0])
     path2pkl = f'{out_path}/sso_{sso_id}.pkl'
-    if os.path.isfile(path2pkl) and not overwrite:
-        return
+    kzip_out = f'{out_path}/{os.path.split(kzip_path)[1][:-6]}_colored.k.zip'
+
+    if os.path.isfile(path2pkl):
+        if not overwrite:
+            return
+        else:
+            os.remove(path2pkl)
+            if os.path.isfile(kzip_out):
+                os.remove(kzip_out)
     sso = SuperSegmentationObject(sso_id, version=version)
     assert sso.attr_dict_exists
     # load annotation object
     a_obj = load_skeleton(kzip_path, scaling=sso.scaling)
+
     if len(a_obj) == 1:
         a_obj = list(a_obj.values())[0]
     elif str(sso_id) in a_obj:
@@ -118,6 +127,10 @@ def labels2mesh(args):
     else:
         raise ValueError(f'Could not find annotation skeleton in "{kzip_path}".')
 
+    # required for write_skeletons
+    if a_obj.comment == '':
+        a_obj.comment = str(a_obj.annotation_ID)
+
     label_mapping = label_mappings[TARGET_LABELS]
     num_class = class_nums[TARGET_LABELS]
 
@@ -126,7 +139,7 @@ def labels2mesh(args):
 
     # extract node coordinates and labels and remove nodes with label 11 (ignore)
     a_node_coords, a_edges, a_node_labels, a_node_labels_raw, g, a_node_labels_orig = \
-        anno_skeleton2np(a_obj, scaling=sso.scaling)
+        anno_skeleton2np(a_obj, scaling=sso.scaling, verbose=False)
     a_node_coords_orig = np.array(a_node_coords)
 
     if 'areaxfs3' in global_params.wd:
@@ -192,17 +205,21 @@ def labels2mesh(args):
         vert_l = a_node_labels[ixs]
 
         if ix == 0:
+            # save skeleton
+            sso.skeleton['source'] = node_labels.squeeze()
+            sso.skeleton['orig_labels'] = node_orig_labels.squeeze()
+            if color_mode:
+                write_skeleton(kzip_out, [a_obj])
+            else:
+                sso.save_skeleton_to_kzip(kzip_out, additional_keys=['source', 'orig_labels'])
             # save colored mesh
             col_lookup = {0: (125, 125, 125, 255), 1: (255, 125, 125, 255), 2: (125, 255, 125, 255),
                           3: (125, 125, 255, 255),
                           4: (255, 255, 125, 255), 5: (125, 255, 255, 255), 6: (255, 125, 255, 255), 7: (0, 0, 0, 255),
                           8: (255, 0, 0, 255)}
             cols = np.array([col_lookup[el] for el in vert_l.squeeze()], dtype=np.uint8)
-            write_mesh2kzip(f'{out_path}/sso_{sso.id}.k.zip', indices.astype(np.float32),
+            write_mesh2kzip(kzip_out, indices.astype(np.float32),
                             vertices.astype(np.float32), None, cols, f'{sso_id}.ply')
-            sso.skeleton['source'] = node_labels.squeeze()
-            sso.skeleton['orig_labels'] = node_orig_labels.squeeze()
-            sso.save_skeleton_to_kzip(f'{out_path}/sso_{sso.id}.k.zip', additional_keys=['source', 'orig_labels'])
 
         # only set labels for cell surface points -> subcellular structures will have label -1
         if ix == 0:
@@ -299,7 +316,7 @@ j0251: 'dendrite': 0, 'axon': 1, 'soma': 2, 'bouton': 3, 'terminal': 4, 'neck': 
 """
 # j0251 ignore labels - is applied before label_mappings from below!
 label_remove = dict(
-    # ignore "ignore", merger, pure dendrite and pure axon (TODO: what are those?!)
+    # ignore "ignore", merger, pure dndrite, pure axon and pure soma
     fine=[11, 12, 13, 14, 15, -1],
     # ignore axon, soma, bouton, terminal
     dnh=[1, 2, 3, 4, 11, 12, 13, 14, 15, -1],
@@ -326,27 +343,36 @@ target_names = dict(fine=['dendrite', 'axon', 'soma', 'bouton', 'terminal', 'nec
                     ads=['dendrite', 'axon', 'soma'])
 
 
-def gt_generation(kzip_paths, out_path, version: str = None, overwrite=True):
+def gt_generation(kzip_paths, out_path, version: str = None, overwrite=True, color_mode=False):
+    """
+
+    :param kzip_paths:
+    :param out_path:
+    :param version:
+    :param overwrite:
+    :param color_mode: Saves original annotation xml to new kzip file.
+    :return:
+    """
     if not os.path.isdir(out_path):
         os.makedirs(out_path)
 
-    params = [(p, out_path, version, overwrite) for p in kzip_paths]
+    params = [(p, out_path, version, overwrite, color_mode) for p in kzip_paths]
     # labels2mesh(params[1])
     # start mapping for each kzip in kzip_paths
     start_multiprocess_imap(labels2mesh, params, nb_cpus=10, debug=False)
 
 
 if __name__ == "__main__":
+    # j0251 GT refined (Nov, 2021)
     TARGET_LABELS = 'fine'  # 'ads'
-    # j0251 GT refined (Nov 16, 2021)
     global_params.wd = "/ssdscratch/pschuber/songbird/j0251/rag_flat_Jan2019_v3/"
-
-    data_path = "/wholebrain/songbird/j0251/groundtruth/compartment_gt/2021_11_subset/train/"
+    # done, unrefined, refined_round2
+    data_path = "/wholebrain/songbird/j0251/groundtruth/compartment_gt/2021_11_rev1/test/"
     destination = data_path + '/hc_out_2021_11_fine/'
     os.makedirs(destination, exist_ok=True)
     file_paths = glob.glob(data_path + '*.k.zip', recursive=False)
 
-    gt_generation(file_paths, destination, overwrite=False)
+    gt_generation(file_paths, destination, overwrite=True, color_mode=True)
 
     # -------- OLD ------------
     # # axon GT
