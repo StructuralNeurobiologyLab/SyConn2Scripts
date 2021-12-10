@@ -374,14 +374,6 @@ if __name__ == "__main__":
 
     gt_generation(file_paths, destination, overwrite=True, color_mode=True)
 
-    # -------- OLD ------------
-    # # axon GT
-    # global_params.wd = "/wholebrain/songbird/j0126/areaxfs_v6/"
-    # file_paths = glob.glob(data_path + '*.k.zip', recursive=False)
-    # file_paths += glob.glob(data_path + '/batch2/*.k.zip', recursive=False)
-    #
-    # gt_generation(file_paths, destination)
-
     # # spine GT (CMN paper)
     # data_path = "/wholebrain/songbird/j0126/GT/spgt_semseg/kzips/"
     # destination = data_path + '/pkl_files/'
