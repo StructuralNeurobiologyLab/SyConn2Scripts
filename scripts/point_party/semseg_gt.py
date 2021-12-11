@@ -99,6 +99,8 @@ def labels2mesh(args):
     kzip_path, out_path, version, overwrite, color_mode = args
     if 'areaxfs3' in global_params.wd:
         sso_id = int(re.findall(r"(\d+).\d+.k.zip", os.path.split(kzip_path)[1])[0])
+    if 'areaxfs_v6' in global_params.wd:
+        sso_id = int(re.findall(r"(\d+).\d+.k.zip", os.path.split(kzip_path)[1])[0])
     else:
         sso_id = int(re.findall(r"_(\d+)", os.path.split(kzip_path)[1])[0])
     path2pkl = f'{out_path}/sso_{sso_id}.pkl'
@@ -239,7 +241,6 @@ def labels2mesh(args):
     assert np.sum(node_labels) > 0, f'No valid no labels found for cell "{kzip_path}".'
     hc = HybridCloud(vertices=verts_tot, features=feats_tot, labels=labels_tot,
                      nodes=nodes, node_labels=node_labels, edges=edges)
-
     # # add myelin (see docstring of map_myelin2coords)
     # sso.skeleton['myelin'] = map_myelin2coords(sso.skeleton["nodes"], mag=4)
     # majorityvote_skeleton_property(sso, 'myelin')
@@ -256,6 +257,8 @@ def labels2mesh(args):
 
     # save generated hybrid cloud to pkl
     hc.save2pkl(path2pkl)
+    print(f'Vertex label summary:', np.unique(labels_tot, return_counts=True))
+    return labels_tot
 
 
 def comment2int(comment: str, convert_to_morphx: bool = True):
@@ -318,6 +321,8 @@ j0251: 'dendrite': 0, 'axon': 1, 'soma': 2, 'bouton': 3, 'terminal': 4, 'neck': 
 label_remove = dict(
     # ignore "ignore", merger, pure dndrite, pure axon and pure soma
     fine=[11, 12, 13, 14, 15, -1],
+    # axgt semseg: "gt_axon" 1, "gt_dendrite" 0, "gt_soma" 2, "gt_bouton" 3, "gt_terminal" 4
+    axgt_semseg=[11, 12, 13, 14, 15, -1],
     # ignore axon, soma, bouton, terminal
     dnh=[1, 2, 3, 4, 11, 12, 13, 14, 15, -1],
     # ignore dendrite, soma, neck, head
@@ -328,6 +333,8 @@ label_remove = dict(
 
 # j0251 mappings
 label_mappings = dict(fine=[(7, 5), (8, 5), (9, 5), (10, 6)],  # st (10; stubby) to "head"
+                      # axgt_semseg
+                      axgt_semseg=[(7, 5), (8, 5), (9, 5), (10, 6), (6, 0), (5, 0),],  # st (10; stubby) to "head"
                       # map nr, in, p, neck to "neck" (1) and head, st (10; stubby) to "head" (2)., dendrite stays 0
                       dnh=[(7, 1), (8, 1), (9, 1), (5, 1), (10, 2), (6, 2)],
                       # map axon to 0, bouton to 1 and terminal to 2
@@ -336,8 +343,9 @@ label_mappings = dict(fine=[(7, 5), (8, 5), (9, 5), (10, 6)],  # st (10; stubby)
                       ads=[(7, 0), (8, 0), (9, 0), (5, 0), (10, 0), (6, 0), (3, 1), (4, 1)],
                       )
 
-class_nums = dict(fine=7, dnh=3, abt=3, ads=3)
+class_nums = dict(fine=7, dnh=3, abt=3, ads=3, axgt_semseg=5)
 target_names = dict(fine=['dendrite', 'axon', 'soma', 'bouton', 'terminal', 'neck', 'head'],
+                    axgt_semseg=['dendrite', 'axon', 'soma', 'bouton', 'terminal'],
                     dnh=['dendrite', 'neck', 'head'],
                     abt=['axon', 'bouton', 'terminal'],
                     ads=['dendrite', 'axon', 'soma'])
@@ -359,20 +367,22 @@ def gt_generation(kzip_paths, out_path, version: str = None, overwrite=True, col
     params = [(p, out_path, version, overwrite, color_mode) for p in kzip_paths]
     # labels2mesh(params[1])
     # start mapping for each kzip in kzip_paths
-    start_multiprocess_imap(labels2mesh, params, nb_cpus=10, debug=False)
+    res = start_multiprocess_imap(labels2mesh, params, nb_cpus=10, debug=False)
+    print(f'----------------------------------------\n'
+          f'Total vertex label summary:\n{np.unique(np.concatenate(res), return_counts=True)}')
 
 
 if __name__ == "__main__":
-    # j0251 GT refined (Nov, 2021)
-    TARGET_LABELS = 'fine'  # 'ads'
-    global_params.wd = "/ssdscratch/pschuber/songbird/j0251/rag_flat_Jan2019_v3/"
-    # done, unrefined, refined_round2
-    data_path = "/wholebrain/songbird/j0251/groundtruth/compartment_gt/2021_11_rev1/test/"
-    destination = data_path + '/hc_out_2021_11_fine/'
-    os.makedirs(destination, exist_ok=True)
-    file_paths = glob.glob(data_path + '*.k.zip', recursive=False)
-
-    gt_generation(file_paths, destination, overwrite=True, color_mode=True)
+    # # j0251 GT refined (Nov, 2021)
+    # TARGET_LABELS = 'fine'  # 'ads'
+    # global_params.wd = "/ssdscratch/pschuber/songbird/j0251/rag_flat_Jan2019_v3/"
+    # # done, unrefined, refined_round2
+    # data_path = "/wholebrain/songbird/j0251/groundtruth/compartment_gt/2021_11_rev1/test/"
+    # destination = data_path + '/hc_out_2021_11_fine/'
+    # os.makedirs(destination, exist_ok=True)
+    # file_paths = glob.glob(data_path + '*.k.zip', recursive=False)
+    #
+    # gt_generation(file_paths, destination, overwrite=True, color_mode=True)
 
     # # spine GT (CMN paper)
     # data_path = "/wholebrain/songbird/j0126/GT/spgt_semseg/kzips/"
@@ -380,3 +390,14 @@ if __name__ == "__main__":
     # global_params.wd = "/wholebrain/scratch/areaxfs3/"
     # file_paths = glob.glob(data_path + '*.k.zip', recursive=False)
     # gt_generation(file_paths, destination, version='spgt')
+
+    # axgt_semseg multi-views
+    TARGET_LABELS = 'axgt_semseg'
+    global_params.wd = "/wholebrain/songbird/j0126/areaxfs_v6/"
+    # done, unrefined, refined_round2
+    data_path = "/wholebrain/songbird/j0126/GT/axgt_semseg/testdata/"
+    destination = data_path + '/hc_out_2021_12_axgtsemseg/'
+    os.makedirs(destination, exist_ok=True)
+    file_paths = glob.glob(data_path + '*.k.zip', recursive=False)
+
+    gt_generation(file_paths, destination, overwrite=True, color_mode=True)

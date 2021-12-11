@@ -48,10 +48,13 @@ if __name__ == '__main__':
     # print('synapse GT (multi-view and point clouds)')
     # dest_dir = f'/wholebrain/scratch/pschuber/cmn_paper/data/semantic_segmentation/eval/syn_gt/'
     # print_node_support(dest_dir)
+    #
+    # # synapse GT
+    # print('spine GT (multi-view paper)')
+    # dest_dir = f'/wholebrain/scratch/pschuber/cmn_paper/data/semantic_segmentation/gt_skels/'
+    # print_node_support(dest_dir)
 
-
-    # synapse GT
-    print('spine GT (multi-view paper)')
-    dest_dir = f'/wholebrain/scratch/pschuber/cmn_paper/data/semantic_segmentation/gt_skels/'
+    # axgt semseg GT (test multi-view, j0126)
+    print('axgt semseg GT (test multi-view, j0126)')
+    dest_dir = f'/wholebrain/songbird/j0126/GT/axgt_semseg/testdata/'
     print_node_support(dest_dir)
-
