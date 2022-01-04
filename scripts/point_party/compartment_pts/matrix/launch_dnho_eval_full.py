@@ -100,7 +100,7 @@ def predict_3model_hierarchy_j0251():
     pred_types = ['ads', 'dnh', 'abt']
     global_params.wd = '/wholebrain/scratch/pschuber/SyConnData/'
     models = get_cmpt_model_pts(pred_types=pred_types, mpath=global_params.config.mpath_compartment_pts)
-    base_dir = f'/wholebrain/scratch/pschuber/experiments/compartment_3models_j0251_syneval_cmn_paper/'
+    base_dir = f'/wholebrain/scratch/pschuber/experiments/compartment_pts_evals/compartment_3models_j0251_syneval_cmn_paper/'
     red = 3
     pred_keys = [f'{pt}_j0251' for pt in pred_types]
     log = initialize_logging('model_hierarchy_j0251_eval', f'{base_dir}/prediction', overwrite=False)

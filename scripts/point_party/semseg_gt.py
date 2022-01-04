@@ -12,12 +12,13 @@ import numpy as np
 import networkx as nx
 from collections import deque
 from syconn.proc.meshes import write_mesh2kzip
-from syconn.handler.basics import load_pkl2obj
+from syconn.handler.basics import load_pkl2obj, write_obj2pkl
 from sklearn.neighbors import KDTree
 from scipy.spatial import cKDTree
 from knossos_utils.skeleton_utils import load_skeleton, write_skeleton
 from syconn.reps.super_segmentation_helper import map_myelin2coords, majorityvote_skeleton_property
-
+from morphx.processing.hybrids import extract_subset
+from syconn.handler.config import initialize_logging
 from tqdm import tqdm
 from syconn import global_params
 from syconn.mp.mp_utils import start_multiprocess_imap
@@ -98,23 +99,39 @@ def labels2mesh(args):
     """
     kzip_path, out_path, version, overwrite, color_mode = args
     if 'areaxfs3' in global_params.wd:
-        sso_id = int(re.findall(r"(\d+).\d+.k.zip", os.path.split(kzip_path)[1])[0])
-    if 'areaxfs_v6' in global_params.wd:
-        sso_id = int(re.findall(r"(\d+).\d+.k.zip", os.path.split(kzip_path)[1])[0])
+        try:
+            sso_id = int(re.findall(r"(\d+).\d+.k.zip", os.path.split(kzip_path)[1])[0])
+        except IndexError:
+            sso_id = int(re.findall(r"(\d+).", os.path.split(kzip_path)[1])[0])
+    elif 'areaxfs_v6' in global_params.wd:
+        try:
+            sso_id = int(re.findall(r"(\d+).\d+.k.zip", os.path.split(kzip_path)[1])[0])
+        except IndexError:
+            sso_id = int(re.findall(r"(\d+).", os.path.split(kzip_path)[1])[0])
     else:
         sso_id = int(re.findall(r"_(\d+)", os.path.split(kzip_path)[1])[0])
     path2pkl = f'{out_path}/sso_{sso_id}.pkl'
+    path2pkl2 = path2pkl.replace('.pkl', '_eval.pkl')
     kzip_out = f'{out_path}/{os.path.split(kzip_path)[1][:-6]}_colored.k.zip'
+    kzip_out2 = f'{out_path}/{os.path.split(kzip_path)[1][:-6]}_sourcenodes.k.zip'
 
-    if os.path.isfile(path2pkl):
+    sso = SuperSegmentationObject(sso_id, version=version)
+    if not sso.attr_dict_exists:
+        print(f'{sso} does not exist.')
+        raise ValueError(f'{sso} does not exist.')
+
+    if os.path.isfile(path2pkl2):
         if not overwrite:
             return
         else:
-            os.remove(path2pkl)
+            os.remove(path2pkl2)
+            if os.path.isfile(path2pkl):
+                os.remove(path2pkl)
             if os.path.isfile(kzip_out):
                 os.remove(kzip_out)
-    sso = SuperSegmentationObject(sso_id, version=version)
-    assert sso.attr_dict_exists
+            if os.path.isfile(kzip_out2):
+                os.remove(kzip_out2)
+    assert len(sso.mesh[0]) > 0
     # load annotation object
     a_obj = load_skeleton(kzip_path, scaling=sso.scaling)
 
@@ -212,6 +229,7 @@ def labels2mesh(args):
             sso.skeleton['orig_labels'] = node_orig_labels.squeeze()
             if color_mode:
                 write_skeleton(kzip_out, [a_obj])
+                sso.save_skeleton_to_kzip(kzip_out2, additional_keys=['source', 'orig_labels'])
             else:
                 sso.save_skeleton_to_kzip(kzip_out, additional_keys=['source', 'orig_labels'])
             # save colored mesh
@@ -257,8 +275,18 @@ def labels2mesh(args):
 
     # save generated hybrid cloud to pkl
     hc.save2pkl(path2pkl)
+
+    # get vertex indices from non-source nodes and label them accordingly
+    if 0 in node_labels:
+        unlabeled_verts = np.concatenate([hc.verts2node[ix] for ix, is_source in enumerate(node_labels) if not is_source]).astype(np.int64)
+        labels_tot[unlabeled_verts] = -2  # -1 is used for ultrastructure
+        print(f'Fraction of unlabeled vertices: {len(unlabeled_verts)} vs {len(verts_tot)}')
+    node_orig_labels[node_labels.squeeze() == 0] = -1
+    write_obj2pkl(path2pkl2, dict(vertices=verts_tot, features=feats_tot, labels=labels_tot,
+                  nodes=nodes, node_labels=node_orig_labels, edges=edges))
     print(f'Vertex label summary:', np.unique(labels_tot, return_counts=True))
-    return labels_tot
+    print(f'Node label summary:', np.unique(node_orig_labels, return_counts=True))
+    return labels_tot, node_orig_labels
 
 
 def comment2int(comment: str, convert_to_morphx: bool = True):
@@ -273,14 +301,14 @@ def comment2int(comment: str, convert_to_morphx: bool = True):
     comment = comment.strip()
     if comment in ["gt_dendrite", "shaft", "d"]:
         return 0
-    elif comment == "d_end":
+    elif comment in ["d_end", "d_end "]:
         return 0 if not convert_to_morphx else 13
-    elif comment in ["gt_axon", "a", "axon"]:
+    elif comment in ["gt_axon", "a", "axon", " g_axon", "axon "]:
         return 1
     elif comment == "a_end":
         return 1 if not convert_to_morphx else 14
     elif comment == "s_end":
-        return 1 if not convert_to_morphx else 15
+        return 2 if not convert_to_morphx else 15
     elif comment in ["gt_soma", "other", "s"]:
         return 2
     elif comment in ["gt_bouton", "b", "bouton"]:
@@ -304,6 +332,8 @@ def comment2int(comment: str, convert_to_morphx: bool = True):
     elif comment in ["merger"]:
         return 12
     else:
+        if len(comment) > 0:
+            print(f'WARNING: non-empty node assigne d"-1": {comment}')
         # unidentified label names get the label from the nearest node with appropriate label
         return -1
 
@@ -363,41 +393,70 @@ def gt_generation(kzip_paths, out_path, version: str = None, overwrite=True, col
     """
     if not os.path.isdir(out_path):
         os.makedirs(out_path)
-
+    log = initialize_logging('GT_class_support', out_path)
     params = [(p, out_path, version, overwrite, color_mode) for p in kzip_paths]
     # labels2mesh(params[1])
     # start mapping for each kzip in kzip_paths
-    res = start_multiprocess_imap(labels2mesh, params, nb_cpus=10, debug=False)
-    print(f'----------------------------------------\n'
-          f'Total vertex label summary:\n{np.unique(np.concatenate(res), return_counts=True)}')
+    res = start_multiprocess_imap(labels2mesh, params, nb_cpus=10, debug=True)
+    vert_labels = []
+    node_labels = []
+    for el in res:
+        vert_labels.append(el[0])
+        node_labels.append(el[1])
+    log.info(f'----------------------------------------\n'
+          f'Total vertex label summary:\n{np.unique(np.concatenate(vert_labels), return_counts=True)}')
+    log.info(f'----------------------------------------\n'
+          f'Total node label summary:\n{np.unique(np.concatenate(node_labels), return_counts=True)}')
 
 
 if __name__ == "__main__":
-    # # j0251 GT refined (Nov, 2021)
-    # TARGET_LABELS = 'fine'  # 'ads'
-    # global_params.wd = "/ssdscratch/pschuber/songbird/j0251/rag_flat_Jan2019_v3/"
-    # # done, unrefined, refined_round2
-    # data_path = "/wholebrain/songbird/j0251/groundtruth/compartment_gt/2021_11_rev1/test/"
-    # destination = data_path + '/hc_out_2021_11_fine/'
+    # j0251 GT refined (12, 2021)
+    TARGET_LABELS = 'fine'  # 'ads'
+    global_params.wd = "/ssdscratch/pschuber/songbird/j0251/rag_flat_Jan2019_v3/"
+    data_path = "/wholebrain/songbird/j0251/groundtruth/compartment_gt/2021_12_final/train/"
+    destination = data_path + '/hc_out_2021_12_fine_SUPPORT/'
+    os.makedirs(destination, exist_ok=True)
+    file_paths = glob.glob(data_path + '*.k.zip', recursive=False)
+    gt_generation(file_paths, destination, overwrite=True, color_mode=True)
+
+    data_path = "/wholebrain/songbird/j0251/groundtruth/compartment_gt/2021_12_final/test/"
+    destination = data_path + '/hc_out_2021_12_fine_SUPPORT/'
+    os.makedirs(destination, exist_ok=True)
+    file_paths = glob.glob(data_path + '*.k.zip', recursive=False)
+    gt_generation(file_paths, destination, overwrite=True, color_mode=True)
+
+    # # spine GT (CMN paper)
+    # data_path = "/wholebrain/songbird/j0126/GT/spgt_semseg/kzips/"
+    # destination = data_path + '/pkl_files_SUPPORT/'
+    # global_params.wd = "/wholebrain/scratch/areaxfs3/"
+    # file_paths = glob.glob(data_path + '*.k.zip', recursive=False)
+    # gt_generation(file_paths, destination, version='spgt')
+
+    # # axgt_semseg multi-views
+    # TARGET_LABELS = 'axgt_semseg'
+    # global_params.wd = "/wholebrain/songbird/j0126/areaxfs_v6/"
+    # data_path = "/wholebrain/songbird/j0126/GT/axgt_semseg/testdata/"
+    # destination = data_path + '/hc_out_2021_12_axgtsemseg_SUPPORT/'
     # os.makedirs(destination, exist_ok=True)
     # file_paths = glob.glob(data_path + '*.k.zip', recursive=False)
     #
     # gt_generation(file_paths, destination, overwrite=True, color_mode=True)
 
-    # # spine GT (CMN paper)
-    # data_path = "/wholebrain/songbird/j0126/GT/spgt_semseg/kzips/"
-    # destination = data_path + '/pkl_files/'
+    # # axgt semseg points (dendrite, axon, soma, bouton, terminal)
+    # data_path = '/wholebrain/songbird/j0126/GT/axgt_semseg/kzips/NEW_including_boutons/batch1_results/'
+    # TARGET_LABELS = 'fine'
     # global_params.wd = "/wholebrain/scratch/areaxfs3/"
+    # destination = data_path + '/../hc_out_2021_12_axgtsemseg_SUPPORT/'
+    # os.makedirs(destination, exist_ok=True)
     # file_paths = glob.glob(data_path + '*.k.zip', recursive=False)
-    # gt_generation(file_paths, destination, version='spgt')
-
-    # axgt_semseg multi-views
-    TARGET_LABELS = 'axgt_semseg'
-    global_params.wd = "/wholebrain/songbird/j0126/areaxfs_v6/"
-    # done, unrefined, refined_round2
-    data_path = "/wholebrain/songbird/j0126/GT/axgt_semseg/testdata/"
-    destination = data_path + '/hc_out_2021_12_axgtsemseg/'
-    os.makedirs(destination, exist_ok=True)
-    file_paths = glob.glob(data_path + '*.k.zip', recursive=False)
-
-    gt_generation(file_paths, destination, overwrite=True, color_mode=True)
+    #
+    # gt_generation(file_paths, destination, overwrite=True, color_mode=True)
+    #
+    # data_path = '/wholebrain/songbird/j0126/GT/axgt_semseg/kzips/NEW_including_boutons/batch2_results_v2/'
+    # TARGET_LABELS = 'fine'
+    # global_params.wd = "/wholebrain/songbird/j0126/areaxfs_v6/"
+    # destination = data_path + '/../hc_out_2021_12_axgtsemseg_SUPPORT/'
+    # os.makedirs(destination, exist_ok=True)
+    # file_paths = glob.glob(data_path + '*.k.zip', recursive=False)
+    #
+    # gt_generation(file_paths, destination, overwrite=True, color_mode=True)

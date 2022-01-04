@@ -80,13 +80,21 @@ def preds2mesh(args):
 
     # load hybrid cloud GT file
     hc = load_pkl2obj(fname)
+    # vertex and node labels contain nodes/vertices labels that indicate if not close to a GT node.
+    hc_correct_vertex_labels = load_pkl2obj(fname.replace('.pkl', '_eval.pkl'))
     nodes_gt = hc['nodes']
+    assert np.all(nodes_gt == hc_correct_vertex_labels['nodes'])
+    node_labels_gt = hc_correct_vertex_labels['node_labels']
+
     edges_gt = hc['edges']
-    # cell mesh vertices are stored with label != -1
+    # ultrastructure mesh vertices are stored with label != -1
     vertex_labels_gt = hc['labels'].squeeze()
     vertices_gt = hc['vertices']
+    assert np.all(vertices_gt == hc_correct_vertex_labels['vertices'])
     vertices_gt = vertices_gt[vertex_labels_gt != -1]
     vertex_labels_gt = vertex_labels_gt[vertex_labels_gt != -1]
+    # flag vertices that were not labeled by a skeleton node close to a GT node
+    vertex_labels_gt[hc_correct_vertex_labels['labels'] == -2] = -1
 
     # use stored skeleton in the GT pkl file, not the one from the working directory
     sso = SuperSegmentationObject(sso_id, view_caching=True, working_dir=wd)
@@ -118,10 +126,6 @@ def preds2mesh(args):
         sso.skeleton['nodes'], view_props['semseg_key'],
         **global_params.config['compartments']['map_properties_semsegax'])
     # map gt
-    sso._label_dict['vertex']['gt'] = vertex_labels_gt
-    node_labels_gt = sso.semseg_for_coords(
-        sso.skeleton['nodes'], 'gt',
-        **global_params.config['compartments']['map_properties_semsegax'])
     sso.skeleton['node_labels_gt'] = node_labels_gt
 
     # map pred
@@ -133,6 +137,11 @@ def preds2mesh(args):
     write_obj2pkl(path2pkl, dict(vertices_pred=vertices_pred, vertices_gt=vertex_labels_gt,
                                  nodes_gt=node_labels_gt, nodes_pred=sso.skeleton[view_props['semseg_key']],
                                  nodes=nodes_gt, vertices=vertices_gt))
+
+    vertices_pred = vertices_pred[vertex_labels_gt != -1]
+    vertex_labels_gt = vertex_labels_gt[vertex_labels_gt != -1]
+    node_preds = node_preds[node_labels_gt != -1]
+    node_labels_gt = node_labels_gt[node_labels_gt != -1]
     log.info(f'Evaluation of the following file: {path2pkl}')
     vert_rep = classification_report(vertex_labels_gt, vertices_pred, labels=np.arange(5),
                                      target_names=['dendrite', 'axon', 'soma', 'bouton', 'terminal'])
