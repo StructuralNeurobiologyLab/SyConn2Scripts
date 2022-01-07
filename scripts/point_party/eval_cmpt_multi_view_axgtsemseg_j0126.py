@@ -32,12 +32,12 @@ def pred_mp(pkl_paths, out_path, version: str = None, overwrite=True):
     nodes_pred = np.concatenate(nodes_pred)
     log.info(f'Evaluation of all {len(pkl_paths)} following files: {pkl_paths}')
     vert_rep = classification_report(verts_gt, verts_pred, labels=np.arange(5),
-                                     target_names=['dendrite', 'axon', 'soma', 'bouton', 'terminal'])
+                                     target_names=['dendrite', 'axon', 'soma', 'bouton', 'terminal'], digits=4)
     log.info(f'----------------------------------------\n'
              f'Total vertex performance:\n{vert_rep}')
 
     node_rep = classification_report(nodes_gt, nodes_pred, labels=np.arange(5),
-                                     target_names=['dendrite', 'axon', 'soma', 'bouton', 'terminal'])
+                                     target_names=['dendrite', 'axon', 'soma', 'bouton', 'terminal'], digits=4)
     log.info(f'----------------------------------------\n'
              f'Total node performance:\n{node_rep}')
 
@@ -48,7 +48,7 @@ def pred_mp(pkl_paths, out_path, version: str = None, overwrite=True):
     verts_pred[verts_pred == 4] = 3
     log.info(f'Evaluation of all {len(pkl_paths)} following files: {pkl_paths}')
     vert_rep = classification_report(verts_gt, verts_pred, labels=np.arange(4),
-                                     target_names=['dendrite', 'axon', 'soma', 'bouton'])
+                                     target_names=['dendrite', 'axon', 'soma', 'bouton'], digits=4)
     log.info(f'----------------------------------------\n'
              f'Total vertex performance (one bouton label):\n{vert_rep}')
     nodes_gt = np.array(nodes_gt)
@@ -56,7 +56,7 @@ def pred_mp(pkl_paths, out_path, version: str = None, overwrite=True):
     nodes_pred = np.array(nodes_pred)
     nodes_pred[nodes_pred == 4] = 3
     node_rep = classification_report(nodes_gt, nodes_pred, labels=np.arange(4),
-                                     target_names=['dendrite', 'axon', 'soma', 'bouton'])
+                                     target_names=['dendrite', 'axon', 'soma', 'bouton'], digits=4)
     log.info(f'----------------------------------------\n'
              f'Total node performance (one bouton label):\n{node_rep}')
 
@@ -91,10 +91,12 @@ def preds2mesh(args):
     vertex_labels_gt = hc['labels'].squeeze()
     vertices_gt = hc['vertices']
     assert np.all(vertices_gt == hc_correct_vertex_labels['vertices'])
+    vertex_labels_unlabeled_flag = hc_correct_vertex_labels['labels'].squeeze()
     vertices_gt = vertices_gt[vertex_labels_gt != -1]
+    vertex_labels_unlabeled_flag = vertex_labels_unlabeled_flag[vertex_labels_gt != -1]
     vertex_labels_gt = vertex_labels_gt[vertex_labels_gt != -1]
     # flag vertices that were not labeled by a skeleton node close to a GT node
-    vertex_labels_gt[hc_correct_vertex_labels['labels'] == -2] = -1
+    vertex_labels_gt[vertex_labels_unlabeled_flag == -2] = -1
 
     # use stored skeleton in the GT pkl file, not the one from the working directory
     sso = SuperSegmentationObject(sso_id, view_caching=True, working_dir=wd)
@@ -144,11 +146,11 @@ def preds2mesh(args):
     node_labels_gt = node_labels_gt[node_labels_gt != -1]
     log.info(f'Evaluation of the following file: {path2pkl}')
     vert_rep = classification_report(vertex_labels_gt, vertices_pred, labels=np.arange(5),
-                                     target_names=['dendrite', 'axon', 'soma', 'bouton', 'terminal'])
+                                     target_names=['dendrite', 'axon', 'soma', 'bouton', 'terminal'], digits=4)
     log.info(f'----------------------------------------\n'
              f'Vertex performance:\n{vert_rep}')
     node_rep = classification_report(node_labels_gt, node_preds, labels=np.arange(5),
-                                     target_names=['dendrite', 'axon', 'soma', 'bouton', 'terminal'])
+                                     target_names=['dendrite', 'axon', 'soma', 'bouton', 'terminal'], digits=4)
     log.info(f'----------------------------------------\n'
              f'Node performance:\n{node_rep}')
 
@@ -159,7 +161,7 @@ def preds2mesh(args):
     vertices_pred_tmp[vertices_pred_tmp == 4] = 3
     log.info(f'Evaluation of the following file: {path2pkl}')
     vert_rep = classification_report(vertex_labels_gt_tmp, vertices_pred_tmp, labels=np.arange(4),
-                                     target_names=['dendrite', 'axon', 'soma', 'bouton'])
+                                     target_names=['dendrite', 'axon', 'soma', 'bouton'], digits=4)
     log.info(f'----------------------------------------\n'
              f'Vertex performance (one bouton label):\n{vert_rep}')
     node_labels_gt_tmp = np.array(node_labels_gt)
@@ -167,7 +169,7 @@ def preds2mesh(args):
     node_preds_tmp = np.array(node_preds)
     node_preds_tmp[node_preds_tmp == 4] = 3
     node_rep = classification_report(node_labels_gt_tmp, node_preds_tmp, labels=np.arange(4),
-                                     target_names=['dendrite', 'axon', 'soma', 'bouton'])
+                                     target_names=['dendrite', 'axon', 'soma', 'bouton'], digits=4)
     log.info(f'----------------------------------------\n'
              f'Node performance (one bouton label):\n{node_rep}')
 
@@ -177,9 +179,8 @@ def preds2mesh(args):
 if __name__ == '__main__':
     wd = "/wholebrain/songbird/j0126/areaxfs_v6/"
     global_params.wd = wd
-    # done, unrefined, refined_round2
-    data_path = "/wholebrain/songbird/j0126/GT/axgt_semseg/testdata/hc_out_2021_12_axgtsemseg/"
-    destination = data_path + '/predictions/'
-    os.makedirs(destination, exist_ok=True)
-    file_paths = glob.glob(data_path + '*.pkl', recursive=False)
-    pred_mp(file_paths, destination)
+    data_path = "/wholebrain/songbird/j0126/GT/axgt_semseg/testdata/hc_out_2021_12_axgtsemseg_SUPPORT/"
+    out_dir = f'/wholebrain/scratch/pschuber/experiments/axgtsemseg_testj0126/multiviews/k20/'
+    os.makedirs(out_dir, exist_ok=True)
+    file_paths = [fname for fname in glob.glob(data_path + '/*.pkl') if 'eval' not in os.path.split(fname)[1]]
+    pred_mp(file_paths, out_dir)

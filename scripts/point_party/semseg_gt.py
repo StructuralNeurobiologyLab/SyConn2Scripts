@@ -81,8 +81,57 @@ def anno_skeleton2np(a_obj, scaling, verbose=False):
                     # all nodes between source and first node with label take on that label
                     path = nx.shortest_path(g, node, ix)
                     a_node_labels[path] = a_node_labels[ix]
-    # keep 13 and 14 in orig labels (so that they will not be used as starting nodes for context generation)
+    # keep 13 and 14 and 15 in orig labels (so that they will not be used as starting nodes for context generation)
     a_node_labels_orig = np.array(a_node_labels)
+    # use a_end and d_end as axon and dendrite label, but not as starting locations
+    a_node_labels[a_node_labels == 13] = 0  # convert to dendrite
+    a_node_labels[a_node_labels == 14] = 1  # convert to axon
+    a_node_labels[a_node_labels == 15] = 2  # convert to soma
+    return a_node_coords, a_edges, a_node_labels, a_node_labels_raw, g, a_node_labels_orig
+
+
+def anno_skeleton2np_extendedsoma(a_obj, scaling, verbose=False):
+    a_nodes = list(a_obj.getNodes())
+    a_node_coords = np.array([n.getCoordinate() * scaling for n in a_nodes])
+    a_node_labels = np.array([comment2int(n.getComment()) for n in a_nodes], dtype=np.int32)
+    a_node_labels_raw = np.array([n.getComment() for n in a_nodes])
+    # generate graph from nodes in annotation object
+    a_edges = []
+    if verbose:
+        print("Building graph...")
+    for node in tqdm(a_nodes, disable=not verbose):
+        ix = a_nodes.index(node)
+        neighbors = node.getNeighbors()
+        for neighbor in neighbors:
+            nix = a_nodes.index(neighbor)
+            a_edges.append((ix, nix))
+    g = nx.Graph()
+    g.add_nodes_from([(i, dict(label=a_node_labels[i])) for i in range(len(a_nodes))])
+    g.add_edges_from(a_edges)
+    a_edges = np.array(g.edges)
+    # keep 13 and 14 and 15 in orig labels (so that they will not be used as starting nodes for context generation)
+    a_node_labels_orig = np.array(a_node_labels)
+    # remove labels on branches that are only at the soma
+    # propagate labels, nodes with no label get label from nearest node with label
+    if -1 in a_node_labels:
+        if verbose:
+            print("Propagating labels...")
+        nodes = np.array(g.nodes)
+        # shuffling to make sure the label searches are not done for consecutive nodes => brings potential speedup
+        np.random.shuffle(nodes)
+        for node in tqdm(nodes, disable=not verbose):
+            if a_node_labels[node] == -1:
+                ix = label_search(g, node)
+                if ix == -1:
+                    a_node_labels[node] = 11
+                else:
+                    # all nodes between source and first node with label take on that label
+                    path = nx.shortest_path(g, node, ix)
+                    if (a_node_labels_orig[ix] == 15) and (len(path) < 30):
+                        a_node_labels[path] = 2  # expand soma
+                    else:
+                        a_node_labels[path] = a_node_labels_orig[ix]
+    a_node_labels_orig = np.array(a_node_labels)  # write propagated labels to orig array, but keep 13,14,15
     # use a_end and d_end as axon and dendrite label, but not as starting locations
     a_node_labels[a_node_labels == 13] = 0  # convert to dendrite
     a_node_labels[a_node_labels == 14] = 1  # convert to axon
@@ -157,8 +206,10 @@ def labels2mesh(args):
     sso.load_attr_dict()
 
     # extract node coordinates and labels and remove nodes with label 11 (ignore)
+    # a_node_coords, a_edges, a_node_labels, a_node_labels_raw, g, a_node_labels_orig = \
+    #     anno_skeleton2np(a_obj, scaling=sso.scaling, verbose=False)
     a_node_coords, a_edges, a_node_labels, a_node_labels_raw, g, a_node_labels_orig = \
-        anno_skeleton2np(a_obj, scaling=sso.scaling, verbose=False)
+        anno_skeleton2np_extendedsoma(a_obj, scaling=sso.scaling, verbose=False)
     a_node_coords_orig = np.array(a_node_coords)
 
     if 'areaxfs3' in global_params.wd:
@@ -397,7 +448,7 @@ def gt_generation(kzip_paths, out_path, version: str = None, overwrite=True, col
     params = [(p, out_path, version, overwrite, color_mode) for p in kzip_paths]
     # labels2mesh(params[1])
     # start mapping for each kzip in kzip_paths
-    res = start_multiprocess_imap(labels2mesh, params, nb_cpus=10, debug=True)
+    res = start_multiprocess_imap(labels2mesh, params, nb_cpus=10, debug=False)
     vert_labels = []
     node_labels = []
     for el in res:
@@ -413,14 +464,14 @@ if __name__ == "__main__":
     # j0251 GT refined (12, 2021)
     TARGET_LABELS = 'fine'  # 'ads'
     global_params.wd = "/ssdscratch/pschuber/songbird/j0251/rag_flat_Jan2019_v3/"
-    data_path = "/wholebrain/songbird/j0251/groundtruth/compartment_gt/2021_12_final/train/"
-    destination = data_path + '/hc_out_2021_12_fine_SUPPORT/'
-    os.makedirs(destination, exist_ok=True)
-    file_paths = glob.glob(data_path + '*.k.zip', recursive=False)
-    gt_generation(file_paths, destination, overwrite=True, color_mode=True)
-
+    # data_path = "/wholebrain/songbird/j0251/groundtruth/compartment_gt/2021_12_final/train/"
+    # destination = data_path + '/hc_out_2021_12_fine_SUPPORT/'
+    # os.makedirs(destination, exist_ok=True)
+    # file_paths = glob.glob(data_path + '*.k.zip', recursive=False)
+    # gt_generation(file_paths, destination, overwrite=True, color_mode=True)
+    #
     data_path = "/wholebrain/songbird/j0251/groundtruth/compartment_gt/2021_12_final/test/"
-    destination = data_path + '/hc_out_2021_12_fine_SUPPORT/'
+    destination = data_path + '/hc_out_2021_12_fine_SUPPORT_extended_soma/'
     os.makedirs(destination, exist_ok=True)
     file_paths = glob.glob(data_path + '*.k.zip', recursive=False)
     gt_generation(file_paths, destination, overwrite=True, color_mode=True)

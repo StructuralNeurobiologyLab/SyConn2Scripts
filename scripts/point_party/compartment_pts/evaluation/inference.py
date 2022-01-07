@@ -535,7 +535,7 @@ def predict_sso_thread_3models_hierarchy(sso_ids: List[int], wd: str, models: li
     batch_size = 4
     scale_norm = 5000
     valid_transform = clouds.Compose([clouds.Center(),
-                                      clouds.Normalization(scale_norm)
+                                      # clouds.Normalization(scale_norm)
                                       ])
     voxel_dc = dict(pts_feat_ds_dict['compartment'])
     feats = dict(pts_feat_dict)
