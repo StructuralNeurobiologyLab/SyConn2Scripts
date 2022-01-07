@@ -46,6 +46,33 @@ def convert_cmpt_preds_(ld):
     return ads
 
 
+def convert_7class_to_das(arr):
+    """
+    Not in-place!
+
+    Final labels: (0, dendrite), (1, axon), (2, soma)
+    """
+    out = np.array(arr)
+    out[out == 3] = 1
+    out[out == 4] = 1
+    out[out == 5] = 0
+    out[out == 6] = 0
+    return out
+
+
+def convert_7class_to_dasbh(arr):
+    """
+    Not in-place! Merge terminal and en-passant boutons, merge neck to dendrite.
+
+    Final labels: (0, dendrite), (1, axon), (2, soma), (3, bouton), (4, head).
+    """
+    out = np.array(arr)
+    out[out == 4] = 3  # terminal to bouton
+    out[out == 5] = 0  # neck to dendrite
+    out[out == 6] = 4
+    return out
+
+
 def batch_builder(samples: List[Tuple[PointCloud, np.ndarray]], batch_size: int, input_channels: int):
     point_num = len(samples[0][0].vertices)
     batch_num = math.ceil(len(samples) / batch_size)
@@ -241,10 +268,13 @@ def predict_sso_thread_3models_hierarchy(pkl_files: List[str], models: list,
 
             start_proc = time.time()
             vertices_pred_converted = convert_cmpt_preds_(vertex_res_dc)
+            assert -1 not in vertices_pred_converted
             # propagate vertex labels to node labels
             ld = sso.label_dict('vertex')
             ld['final_3models'] = vertices_pred_converted
-            node_preds_converted = sso.semseg_for_coords(hc_unlabeled_flag['nodes'] / sso.scaling, 'final_3models', **node_map_properties)
+            node_preds_converted = sso.semseg_for_coords(hc_unlabeled_flag['nodes'] / sso.scaling, 'final_3models',
+                                                         **node_map_properties)
+            assert -1 not in node_preds_converted
             assert len(vertices_coord_gt) == len(vertices_pred_converted)
             total_postproc_time += time.time() - start_proc
             assert len(vertices_pred_converted) == len(vertex_labels_gt)
@@ -269,17 +299,45 @@ def predict_sso_thread_3models_hierarchy(pkl_files: List[str], models: list,
             ld['final_3models_gt'] = vertex_labels_gt
             sso.semseg2mesh(semseg_key='final_3models_gt', dest_path=f'{out_p}/{sso_id}_final_3models_gt.k.zip')
 
+        sso_report = ''
         mask = (vertices_pred_converted != -1) & (vertex_labels_gt != -1)
-        vert_rep = classification_report(vertex_labels_gt[mask], vertices_pred_converted[mask], labels=np.arange(7),
+        vertex_labels_gt_tmp = vertex_labels_gt[mask]
+        vertices_pred_converted_tmp = vertices_pred_converted[mask]
+        vert_rep = classification_report(vertex_labels_gt_tmp, vertices_pred_converted_tmp, labels=np.arange(7),
                                          target_names=['dendrite', 'axon', 'soma', 'bouton', 'terminal', 'neck', 'head'],
                                          zero_division=0, digits=4)
-        log.info(f'----------------------------------------\n{sso_id} vertex performance:\n{vert_rep}')
+        sso_report += f'----------------------------------------\n{sso_id} vertex performance:\n{vert_rep}'
         mask = (node_preds_converted != -1) & (node_labels_gt != -1)
-        node_rep = classification_report(node_labels_gt[mask], node_preds_converted[mask], labels=np.arange(7),
+        node_labels_gt_tmp = node_labels_gt[mask]
+        node_preds_converted_tmp = node_preds_converted[mask]
+        node_rep = classification_report(node_labels_gt_tmp, node_preds_converted_tmp, labels=np.arange(7),
                                          target_names=['dendrite', 'axon', 'soma', 'bouton', 'terminal', 'neck', 'head'],
                                          zero_division=0, digits=4)
-        log.info(f'----------------------------------------\n{sso_id} node performance:\n{node_rep}')
-
+        sso_report += f'----------------------------------------\n{sso_id} node performance:\n{node_rep}'
+        # dasbh report
+        vert_rep = classification_report(convert_7class_to_dasbh(vertex_labels_gt_tmp),
+                                         convert_7class_to_dasbh(vertices_pred_converted_tmp), labels=np.arange(5),
+                                         target_names=['dendrite', 'axon', 'soma', 'bouton', 'head'],
+                                         zero_division=0, digits=4)
+        sso_report += f'----------------------------------------\n{sso_id} vertex performance:\n{vert_rep}'
+        node_rep = classification_report(convert_7class_to_dasbh(node_labels_gt_tmp),
+                                         convert_7class_to_dasbh(node_preds_converted_tmp), labels=np.arange(5),
+                                         target_names=['dendrite', 'axon', 'soma', 'bouton', 'head'],
+                                         zero_division=0, digits=4)
+        sso_report += f'----------------------------------------\n{sso_id} node performance:\n{node_rep}'
+        # das report
+        vert_rep = classification_report(convert_7class_to_das(vertex_labels_gt_tmp),
+                                         convert_7class_to_das(vertices_pred_converted_tmp), labels=np.arange(3),
+                                         target_names=['dendrite', 'axon', 'soma'],
+                                         zero_division=0, digits=4)
+        sso_report += f'----------------------------------------\n{sso_id} vertex performance:\n{vert_rep}'
+        node_rep = classification_report(convert_7class_to_das(node_labels_gt_tmp),
+                                         convert_7class_to_das(node_preds_converted_tmp), labels=np.arange(3),
+                                         target_names=['dendrite', 'axon', 'soma'],
+                                         zero_division=0, digits=4)
+        sso_report += f'----------------------------------------\n{sso_id} node performance:\n{node_rep}'
+        with open(f'{out_p}/{sso_id}_report.txt', 'w') as f:
+            f.write(sso_report)
         # collect results
         verts_gt.append(vertex_labels_gt)
         verts_pred.append(vertices_pred_converted)
@@ -312,26 +370,27 @@ def predict_sso_thread_3models_hierarchy(pkl_files: List[str], models: list,
                                      zero_division=0, digits=4)
     log.info(f'----------------------------------------\n'
              f'Total node performance:\n{node_rep}')
+    # dasbh performance
+    vert_rep = classification_report(convert_7class_to_dasbh(verts_gt),
+                                     convert_7class_to_dasbh(verts_pred), labels=np.arange(5),
+                                     target_names=['dendrite', 'axon', 'soma', 'bouton', 'head'], zero_division=0, digits=4)
+    log.info(f'----------------------------------------\n'
+             f'Total vertex performance (dendrite axon soma bouton head):\n{vert_rep}')
 
-    # convert to ads only
-    verts_gt[verts_gt == 3] = 1
-    verts_gt[verts_gt == 4] = 1
-    verts_gt[verts_gt == 5] = 0
-    verts_gt[verts_gt == 6] = 0
-    verts_pred[verts_pred == 3] = 1
-    verts_pred[verts_pred == 4] = 1
-    verts_pred[verts_pred == 5] = 0
-    verts_pred[verts_pred == 6] = 0
-    nodes_pred[nodes_pred == 3] = 1
-    nodes_pred[nodes_pred == 4] = 1
-    nodes_pred[nodes_pred == 5] = 0
-    nodes_pred[nodes_pred == 6] = 0
-    vert_rep = classification_report(verts_gt, verts_pred, labels=np.arange(3),
+    node_rep = classification_report(convert_7class_to_dasbh(nodes_gt),
+                                     convert_7class_to_dasbh(nodes_pred), labels=np.arange(5),
+                                     target_names=['dendrite', 'axon', 'soma', 'bouton', 'head'], zero_division=0, digits=4)
+    log.info(f'----------------------------------------\n'
+             f'Total node performance (dendrite axon soma bouton head):\n{node_rep}')
+    # das performance
+    vert_rep = classification_report(convert_7class_to_das(verts_gt),
+                                     convert_7class_to_das(verts_pred), labels=np.arange(3),
                                      target_names=['dendrite', 'axon', 'soma'], zero_division=0, digits=4)
     log.info(f'----------------------------------------\n'
              f'Total vertex performance (dendrite axon soma):\n{vert_rep}')
 
-    node_rep = classification_report(nodes_gt, nodes_pred, labels=np.arange(3),
+    node_rep = classification_report(convert_7class_to_das(nodes_gt),
+                                     convert_7class_to_das(nodes_pred), labels=np.arange(3),
                                      target_names=['dendrite', 'axon', 'soma'], zero_division=0, digits=4)
     log.info(f'----------------------------------------\n'
              f'Total node performance (dendrite axon soma):\n{node_rep}')
@@ -361,7 +420,7 @@ if __name__ == '__main__':
     out_dir = f'/wholebrain/scratch/pschuber/experiments' \
               f'/compartment_pts_evalscompartment_3models_j0251_cmpt_j0251_eval/'
 
-    appendix = ''  # '_cellshapeOnly'
+    appendix = '_cellshapeOnly'  # '_cellshapeOnly'
     ch_in = 1 if appendix == '_cellshapeOnly' else 4
     mdir_base_ = f'/wholebrain/scratch/pschuber/e3_trainings/lcp_semseg_j0251_3models{appendix}/'
     mdirs = [mdir_base_ + f'semseg_pts_nb15000_ctx15000_ads_nclass3_lcp_GN_noKernelSep_AdamW_dice{appendix}_eval0/state_dict.pth',

@@ -127,7 +127,7 @@ def anno_skeleton2np_extendedsoma(a_obj, scaling, verbose=False):
                 else:
                     # all nodes between source and first node with label take on that label
                     path = nx.shortest_path(g, node, ix)
-                    if (a_node_labels_orig[ix] == 15) and (len(path) < 30):
+                    if (a_node_labels_orig[ix] == 15) and (len(path) < 40):
                         a_node_labels[path] = 2  # expand soma
                     else:
                         a_node_labels[path] = a_node_labels_orig[ix]
@@ -245,11 +245,13 @@ def labels2mesh(args):
     kdt = cKDTree(a_node_coords_orig)
     node_labels = np.ones((len(nodes), 1), dtype=np.int32)
     node_orig_labels = -np.ones((len(nodes), ), dtype=np.int32)
+    node_propagated_labels = -np.ones((len(nodes), ), dtype=np.int32)
     # TODO: use graph traversal approach
     dists, ixs = kdt.query(nodes, distance_upper_bound=1000)
     node_labels[dists == np.inf] = 0
 
     node_orig_labels[dists != np.inf] = a_node_labels_orig[ixs[dists != np.inf]]
+    node_propagated_labels[dists != np.inf] = a_node_labels[ixs[dists != np.inf]]
     kdt = cKDTree(a_node_coords)
     # load cell and cell organelles
     # _ = sso._load_obj_mesh('syn_ssv', rewrite=True)
@@ -278,9 +280,10 @@ def labels2mesh(args):
             # save skeleton
             sso.skeleton['source'] = node_labels.squeeze()
             sso.skeleton['orig_labels'] = node_orig_labels.squeeze()
+            sso.skeleton['propagated_labels'] = node_propagated_labels.squeeze()
             if color_mode:
                 write_skeleton(kzip_out, [a_obj])
-                sso.save_skeleton_to_kzip(kzip_out2, additional_keys=['source', 'orig_labels'])
+                sso.save_skeleton_to_kzip(kzip_out2, additional_keys=['source', 'orig_labels', 'propagated_labels'])
             else:
                 sso.save_skeleton_to_kzip(kzip_out, additional_keys=['source', 'orig_labels'])
             # save colored mesh
@@ -400,7 +403,7 @@ j0251: 'dendrite': 0, 'axon': 1, 'soma': 2, 'bouton': 3, 'terminal': 4, 'neck': 
 """
 # j0251 ignore labels - is applied before label_mappings from below!
 label_remove = dict(
-    # ignore "ignore", merger, pure dndrite, pure axon and pure soma
+    # ignore "ignore", merger, pure dendrite, pure axon and pure soma
     fine=[11, 12, 13, 14, 15, -1],
     # axgt semseg: "gt_axon" 1, "gt_dendrite" 0, "gt_soma" 2, "gt_bouton" 3, "gt_terminal" 4
     axgt_semseg=[11, 12, 13, 14, 15, -1],
@@ -448,7 +451,7 @@ def gt_generation(kzip_paths, out_path, version: str = None, overwrite=True, col
     params = [(p, out_path, version, overwrite, color_mode) for p in kzip_paths]
     # labels2mesh(params[1])
     # start mapping for each kzip in kzip_paths
-    res = start_multiprocess_imap(labels2mesh, params, nb_cpus=10, debug=False)
+    res = start_multiprocess_imap(labels2mesh, params, nb_cpus=20, debug=False)
     vert_labels = []
     node_labels = []
     for el in res:

@@ -11,7 +11,6 @@ import sklearn.metrics as sm
 from scipy.spatial import cKDTree
 from utils import merge
 from syconn.reps.rep_helper import colorcode_vertices
-from inference import predict_sso_thread_3models_hierarchy
 from collections import defaultdict
 from morphx.preprocessing import splitting
 from morphx.classes.hybridcloud import HybridCloud
@@ -26,6 +25,19 @@ from syconn.reps.super_segmentation_dataset import SuperSegmentationDataset
 from syconn.handler.config import initialize_logging
 
 from lightconvpoint.utils.network import get_search, get_conv
+
+
+def write_confusion_matrix(cm: np.array, names: list) -> str:
+    txt = f"{'':<15}"
+    for name in names:
+        txt += f"{name:<15}"
+    txt += '\n'
+    for ix, name in enumerate(names):
+        txt += f"{name:<15}"
+        for num in cm[ix]:
+            txt += f"{num:<15}"
+        txt += '\n'
+    return txt
 
 
 def batch_builder(samples: List[Tuple[PointCloud, np.ndarray]], batch_size: int, input_channels: int):
@@ -184,7 +196,7 @@ def predict_sso_thread_2models_hierarchy(sso_ids: List[int], wd: str, models: li
             # filter possible organelles and borders
             preds = preds[idcs_preds != -1]
             idcs_preds = idcs_preds[idcs_preds != -1].astype(int) - hc.obj_bounds['sv'][0]
-            pred_labels = np.ones((len(voxel_idcs['sv']), 1)) * -1
+            pred_labels = np.ones(len(voxel_idcs['sv'])) * -1
             print(f"Finished predictions after {(time.time() - start):.2f} seconds.")
             total_time += time.time() - start
             print("Evaluating predictions...")
@@ -192,7 +204,7 @@ def predict_sso_thread_2models_hierarchy(sso_ids: List[int], wd: str, models: li
             evaluate_preds(idcs_preds, preds, pred_labels)
             print(f"Finished majority vote in {(time.time() - start):.2f} seconds.")
             sso_vertices = sso.mesh[1].reshape((-1, 3))
-            sso_preds = np.ones((len(sso_vertices), 1)) * -1
+            sso_preds = np.ones((len(sso_vertices) )) * -1
             sso_preds[voxel_idcs['sv']] = pred_labels
             # map predictions to unpredicted vertices
             if not np.all(sso_preds != -1):
@@ -217,22 +229,24 @@ def predict_sso_thread_2models_hierarchy(sso_ids: List[int], wd: str, models: li
 def predict_2model_hierarchy_j0126():
     pred_types = ['do', 'dnh', ]
     mdir_base_ = '/wholebrain/scratch/pschuber/experiments/compartment_pts_evals/compartment_2models_j0126_syneval_cmn_paper/models'
-    mdirs = [f'{mdir_base_}/semseg_pts_nb15000_ctx15000_do_nclass2_lcp_GN_noKernelSep_AdamW_dice_eval0/state_dict.pth',
+    mdirs = [
+             # f'{mdir_base_}/semseg_pts_nb15000_ctx15000_do_nclass2_lcp_GN_noKernelSep_AdamW_dice_eval0/state_dict.pth',
+             f'{mdir_base_}/semseg_pts_nb15000_ctx15000_do_nclass2_lcp_GN_noKernelSep_Adam_CE_eval0/state_dict.pth',
              f'{mdir_base_}/semseg_pts_nb15000_ctx15000_dnh_nclass3_lcp_GN_noKernelSep_AdamW_dice_eval0/state_dict.pth',
             ]
 
     models = {typ: _load_model(mpath, ch_out) for mpath, typ, ch_out in zip(mdirs, pred_types, (2, 3))}
 
-    red = 2
+    red = 5
     pred_keys = [f'{pt}_j0126_2models' for pt in pred_types]
-    log = initialize_logging('model_hierarchy_j0251_eval', f'{base_dir}/eval/', overwrite=False)
+    log = initialize_logging('model_hierarchy_j0251_eval', f'{base_dir}/eval/', overwrite=True)
     log.info(f'Using models: {mdirs}')
     log.info(f'Predicting ssvs {ssv_ids} from working directory "{wd}".\nkNN for synapse label mapping: {nn_syn_mapping}'
              f'prediction key: {pred_keys}, redundancy: {red}, model path: {base_dir}, vertex kNN: {smoothing_k}')
 
     # set wd according to GT files
     global_params.wd = wd
-    duration = predict_sso_thread_3models_hierarchy(
+    duration = predict_sso_thread_2models_hierarchy(
         ssv_ids, wd, models=list(models.values()), pred_keys=pred_keys, redundancy=red, out_p=base_dir)
     ssd = SuperSegmentationDataset(working_dir=wd)
     vx_cnt = np.sum([ssv.size for ssv in ssd.get_super_segmentation_object(ssv_ids)])
@@ -313,8 +327,11 @@ if __name__ == "__main__":
     targets = ['shaft', 'neck', 'head', 'other']
     exclude = [targets[i] for i in exclude]
     report = f'Excluded synapse labels: {exclude}\n\n'
-    report += sm.classification_report(total_gt, total_preds, labels=np.arange(len(targets)), target_names=targets)
+    report += sm.classification_report(total_gt, total_preds, labels=np.arange(len(targets)), target_names=targets,
+                                       digits=4, zero_division=0)
+    cm = sm.confusion_matrix(total_gt, total_preds, labels=np.arange(len(targets)))
     report += '\n\n'
+    report += write_confusion_matrix(cm, targets)
     report += f'\n\nNumber of errors: {error_count}'
     report += f'\n\nError locations: {error_coords / ssd.scaling}'
     with open(base_dir + 'eval/report.txt', 'w') as f:
