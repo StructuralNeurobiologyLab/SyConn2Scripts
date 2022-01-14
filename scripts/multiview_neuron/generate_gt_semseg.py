@@ -318,7 +318,6 @@ if __name__ == "__main__":
         n_views = 6  # increase views per location due to higher pixel size, also increases GT
         # diversity
 
-
         # # Process original data
         # dest_gt_dir = "/wholebrain/scratch/areaxfs3/ssv_semsegaxoness/gt_h5_files_80nm_{" \
         #               "}/".format(ws[0])

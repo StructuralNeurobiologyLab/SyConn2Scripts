@@ -27,6 +27,19 @@ from syconn.handler.config import initialize_logging
 from lightconvpoint.utils.network import get_search, get_conv
 
 
+def write_confusion_matrix(cm: np.array, names: list) -> str:
+    txt = f"{'':<15}"
+    for name in names:
+        txt += f"{name:<15}"
+    txt += '\n'
+    for ix, name in enumerate(names):
+        txt += f"{name:<15}"
+        for num in cm[ix]:
+            txt += f"{num:<15}"
+        txt += '\n'
+    return txt
+
+
 def batch_builder(samples: List[Tuple[PointCloud, np.ndarray]], batch_size: int, input_channels: int):
     point_num = len(samples[0][0].vertices)
     batch_num = math.ceil(len(samples) / batch_size)
@@ -60,7 +73,18 @@ def evaluate_preds(preds_idcs: np.ndarray, preds: np.ndarray, pred_labels: np.nd
         pred_labels[u_ix] = np.argmax(counts)
 
 
-def predict_sso_thread_3models_hierarchy(sso_ids: List[int], wd: str, models: list,
+def _load_model(mpath, ch_out):
+    search = 'SearchQuantized'
+    conv = dict(layer='ConvPoint', kernel_separation=False, normalize_pts=True)
+    act = nn.ReLU
+    m = ConvAdaptSeg(4, ch_out, get_conv(conv), get_search(search), kernel_num=64,
+                     architecture=None, activation=act, norm='gn').to('cuda')
+    m.load_state_dict(torch.load(mpath)['model_state_dict'])
+    # m = torch.load(mpath)
+    return m
+
+
+def predict_sso_thread_2models_hierarchy(sso_ids: List[int], wd: str, models: list,
                                          pred_keys: list, redundancy: int, v3: bool = True, out_p: str = None):
     from syconn.handler.prediction_pts import pts_feat_dict, pts_feat_ds_dict
     ssd = SuperSegmentationDataset(working_dir=wd)
@@ -71,9 +95,7 @@ def predict_sso_thread_3models_hierarchy(sso_ids: List[int], wd: str, models: li
     context_size = 15000
     nb_points = 15000
     batch_size = 4
-    scale_norm = 5000
     valid_transform = clouds.Compose([clouds.Center(),
-                                      # clouds.Normalization(scale_norm)
                                       ])
     voxel_dc = dict(pts_feat_ds_dict['compartment'])
     feats = dict(pts_feat_dict)
@@ -182,7 +204,7 @@ def predict_sso_thread_3models_hierarchy(sso_ids: List[int], wd: str, models: li
             evaluate_preds(idcs_preds, preds, pred_labels)
             print(f"Finished majority vote in {(time.time() - start):.2f} seconds.")
             sso_vertices = sso.mesh[1].reshape((-1, 3))
-            sso_preds = np.ones(len(sso_vertices)) * -1
+            sso_preds = np.ones((len(sso_vertices) )) * -1
             sso_preds[voxel_idcs['sv']] = pred_labels
             # map predictions to unpredicted vertices
             if not np.all(sso_preds != -1):
@@ -204,38 +226,27 @@ def predict_sso_thread_3models_hierarchy(sso_ids: List[int], wd: str, models: li
     return total_time
 
 
-def _load_model(mpath, ch_in):
-    search = 'SearchQuantized'
-    conv = dict(layer='ConvPoint', kernel_separation=False, normalize_pts=True)
-    act = nn.ReLU
-    m = ConvAdaptSeg(ch_in, 3, get_conv(conv), get_search(search), kernel_num=64,
-                     architecture=None, activation=act, norm='gn').to('cuda')
-    m.load_state_dict(torch.load(mpath)['model_state_dict'])
-    # m = torch.load(mpath)
-    return m
+def predict_2model_hierarchy_j0126():
+    pred_types = ['do', 'dnh', ]
+    mdir_base_ = '/wholebrain/scratch/pschuber/experiments/compartment_pts_evals/compartment_2models_j0126_syneval_cmn_paper/models'
+    mdirs = [
+             # f'{mdir_base_}/semseg_pts_nb15000_ctx15000_do_nclass2_lcp_GN_noKernelSep_AdamW_dice_eval0/state_dict.pth',
+             f'{mdir_base_}/semseg_pts_nb15000_ctx15000_do_nclass2_lcp_GN_noKernelSep_Adam_CE_eval0/state_dict.pth',
+             f'{mdir_base_}/semseg_pts_nb15000_ctx15000_dnh_nclass3_lcp_GN_noKernelSep_AdamW_dice_eval0/state_dict.pth',
+            ]
 
+    models = {typ: _load_model(mpath, ch_out) for mpath, typ, ch_out in zip(mdirs, pred_types, (2, 3))}
 
-def predict_3model_hierarchy_j0251():
-    pred_types = ['ads', 'dnh', 'abt']
-
-    mdir_base_ = f'/wholebrain/scratch/pschuber/e3_trainings/lcp_semseg_j0251_3models/'
-    mdirs = [mdir_base_ + f'semseg_pts_nb15000_ctx15000_ads_nclass3_lcp_GN_noKernelSep_AdamW_dice_eval0/state_dict.pth',
-             mdir_base_ + f'semseg_pts_nb15000_ctx15000_dnh_nclass3_lcp_GN_noKernelSep_AdamW_dice_eval0/state_dict.pth',
-             mdir_base_ + f'semseg_pts_nb15000_ctx15000_abt_nclass3_lcp_GN_noKernelSep_AdamW_dice_eval0/state_dict.pth']
-
-    models = {typ: _load_model(mpath, 4) for mpath, typ in zip(mdirs, pred_types)}
-
-    base_dir = f'/wholebrain/scratch/pschuber/experiments/compartment_pts_evals/compartment_3models_j0251_syneval_cmn_paper/'
-    red = 2
-    pred_keys = [f'{pt}_j0251_corrected' for pt in pred_types]
-    log = initialize_logging('model_hierarchy_j0251_eval_corrected', f'{base_dir}/eval_corrected/', overwrite=False)
+    red = 5
+    pred_keys = [f'{pt}_j0126_2models' for pt in pred_types]
+    log = initialize_logging('model_hierarchy_j0251_eval', f'{base_dir}/eval/', overwrite=True)
     log.info(f'Using models: {mdirs}')
     log.info(f'Predicting ssvs {ssv_ids} from working directory "{wd}".\nkNN for synapse label mapping: {nn_syn_mapping}'
              f'prediction key: {pred_keys}, redundancy: {red}, model path: {base_dir}, vertex kNN: {smoothing_k}')
 
     # set wd according to GT files
     global_params.wd = wd
-    duration = predict_sso_thread_3models_hierarchy(
+    duration = predict_sso_thread_2models_hierarchy(
         ssv_ids, wd, models=list(models.values()), pred_keys=pred_keys, redundancy=red, out_p=base_dir)
     ssd = SuperSegmentationDataset(working_dir=wd)
     vx_cnt = np.sum([ssv.size for ssv in ssd.get_super_segmentation_object(ssv_ids)])
@@ -244,42 +255,27 @@ def predict_3model_hierarchy_j0251():
     log.info(f'Processing speed for "{pred_keys}": {(vx_cnt / 1e9 / duration * 3600):.2f} GVx/h')
 
 
-def write_confusion_matrix(cm: np.array, names: list) -> str:
-    txt = f"{'':<15}"
-    for name in names:
-        txt += f"{name:<15}"
-    txt += '\n'
-    for ix, name in enumerate(names):
-        txt += f"{name:<15}"
-        for num in cm[ix]:
-            txt += f"{num:<15}"
-        txt += '\n'
-    return txt
-
-
 # synapse GT labels: 0: dendrite, 1: axon, 2: head, 3: soma
 mapping_gt = {0: 0, 1: 3, 2: 2, 3: 3}  # dendrite, neck (excluded), head, other
 exclude = [3]  # gt labels excluded during eval
-# dendrite->dendrite, axon->other, soma->other, bouton->other, terminal->other, neck_>neck, head->head
-mapping_preds = {0: 0, 1: 3, 2: 3, 3: 3, 4: 3, 5: 1, 6: 2}
+mapping_preds = {0: 0, 1: 3, 5: 1, 6: 2}
 
 
 if __name__ == "__main__":
+    base_dir = f'/wholebrain/scratch/pschuber/experiments/compartment_pts_evals/compartment_2models_j0126_syneval_cmn_paper/'
     smoothing_k = 20
     nn_syn_mapping = 20
-
     # for prediction
     ssv_ids = [141995, 11833344, 28410880, 28479489]
     wd = "/wholebrain/scratch/areaxfs3/"
-    predict_3model_hierarchy_j0251()
+    predict_2model_hierarchy_j0126()
 
     # eval
     with open(os.path.expanduser('/wholebrain/scratch/jklimesch/gt/syn_gt/converted_v3.pkl'), 'rb') as f:
         data = pkl.load(f)
     ssd = SuperSegmentationDataset(working_dir="/wholebrain/scratch/areaxfs3/")
-    save_path = os.path.expanduser(f'/wholebrain/scratch/pschuber/experiments/compartment_pts_evals/'
-                                   f'compartment_3models_j0251_syneval_cmn_paper/')
-    save_path_examples = save_path + '/eval_corrected/examples/'
+
+    save_path_examples = base_dir + '/eval/examples/'
     if not os.path.exists(save_path_examples):
         os.makedirs(save_path_examples)
     total_gt = np.empty((0, 1))
@@ -291,24 +287,21 @@ if __name__ == "__main__":
             sso_id = int(key[:-2])
             sso = ssd.get_super_segmentation_object(sso_id)
 
-            # 0: axon, 1: bouton, 2: terminal
-            with open(f'{save_path}/{sso_id}_abt_j0251_corrected.pkl', 'rb') as f:
-                abt = pkl.load(f)
+            # dendrite: 0, axon: 1
+            with open(f'{base_dir}/{sso_id}_do_j0126_2models.pkl', 'rb') as f:
+                do = pkl.load(f)
             # 0: dendrite, 1: neck, 2: head
-            with open(f'{save_path}/{sso_id}_dnh_j0251_corrected.pkl', 'rb') as f:
+            with open(f'{base_dir}/{sso_id}_dnh_j0126_2models.pkl', 'rb') as f:
                 dnh = pkl.load(f)
-            # 0: dendrite, 1: axon, 2: soma,
-            with open(f'{save_path}/{sso_id}_ads_j0251_corrected.pkl', 'rb') as f:
-                ads = pkl.load(f)
 
-            pc = merge(sso, ads, {1: (abt, [(1, 3), (2, 4), (0, 1)]), 0: (dnh, [(1, 5), (2, 6)])})
-            pc.save2pkl(save_path + 'eval_corrected/' + str(sso_id) + '_corrected.pkl')
+            pc = merge(sso, do, {0: (dnh, [(1, 5), (2, 6)])})
+            pc.save2pkl(base_dir + 'eval/' + str(sso_id) + '.pkl')
             # query synapse coordinates in KDTree of vertices
             tree = cKDTree(pc.vertices)
             coords = data[key]
             result = np.zeros(len(coords))
             dist, ind = tree.query(coords, k=nn_syn_mapping)
-            gt = data[str(sso_id)+'_l']
+            gt = data[str(sso_id) + '_l']
             mask = np.ones((len(coords), 1), dtype=bool)
             for ix in range(len(gt)):
                 gt[ix] = mapping_gt[gt[ix]]
@@ -341,5 +334,5 @@ if __name__ == "__main__":
     report += write_confusion_matrix(cm, targets)
     report += f'\n\nNumber of errors: {error_count}'
     report += f'\n\nError locations: {error_coords / ssd.scaling}'
-    with open(save_path + 'eval_corrected/report_corrected.txt', 'w') as f:
+    with open(base_dir + 'eval/report.txt', 'w') as f:
         f.write(report)

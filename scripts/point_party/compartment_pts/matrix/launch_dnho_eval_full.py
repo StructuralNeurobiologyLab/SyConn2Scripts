@@ -7,7 +7,7 @@ from syconn.reps.super_segmentation import SuperSegmentationDataset
 from syconn.handler.config import initialize_logging
 from syconn import global_params
 from syconn.handler.prediction_pts import get_cmpt_model_pts
-from compartment_pts.evaluation.inference import predict_sso_thread_dnho, predict_sso_thread_do, predict_sso_thread_3models_hierarchy
+from compartment_pts.evaluation.inference import predict_sso_thread_dnho, predict_sso_thread_do
 from compartment_pts.evaluation.evaluate_on_synapses import evaluate_syn_thread_dnho
 
 
@@ -96,32 +96,8 @@ def predict_do():
     log.info(f'Processing speed for "{pred_key}": {(vx_cnt / 1e9 / duration * 3600):.2f} GVx/h')
 
 
-def predict_3model_hierarchy_j0251():
-    pred_types = ['ads', 'dnh', 'abt']
-    global_params.wd = '/wholebrain/scratch/pschuber/SyConnData/'
-    models = get_cmpt_model_pts(pred_types=pred_types, mpath=global_params.config.mpath_compartment_pts)
-    base_dir = f'/wholebrain/scratch/pschuber/experiments/compartment_3models_j0251_syneval_cmn_paper/'
-    red = 3
-    pred_keys = [f'{pt}_j0251' for pt in pred_types]
-    log = initialize_logging('model_hierarchy_j0251_eval', f'{base_dir}/prediction', overwrite=False)
-    log.info(f'Using models: {glob.glob(global_params.config.mpath_compartment_pts + "*/state_dict.pth")}')
-    log.info(f'Predicting ssvs {ssv_ids} from working directory "{wd}".\n'
-             f'prediction key: {pred_keys}, redundancy: {red}, model path: {base_dir}')
-
-    # set wd according to GT files
-    global_params.wd = wd
-    duration = predict_sso_thread_3models_hierarchy(
-        ssv_ids, wd, models=list(models.values()), pred_keys=pred_keys, redundancy=red, out_p=base_dir)
-    ssd = SuperSegmentationDataset(working_dir=wd)
-    vx_cnt = np.sum([ssv.size for ssv in ssd.get_super_segmentation_object(ssv_ids)])
-    total_inference_speed = vx_cnt / duration * 3600 * np.prod(ssd.scaling) / 1e9  # in um^3 / H
-    log.info(f'Processing speed for "{pred_keys}": {total_inference_speed:.2f} µm^3/h')
-    log.info(f'Processing speed for "{pred_keys}": {(vx_cnt / 1e9 / duration * 3600):.2f} GVx/h')
-
-
 if __name__ == '__main__':
     ssv_ids = [141995, 11833344, 28410880, 28479489]
     wd = "/wholebrain/scratch/areaxfs3/"
     # predict_do()
     # eval_dnho()
-    predict_3model_hierarchy_j0251()
