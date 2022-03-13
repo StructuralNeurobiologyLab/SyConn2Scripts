@@ -20,8 +20,8 @@ from cloudvolume.cacheservice import CacheService
 from cloudvolume.cloudvolume import SharedConfiguration
 
 # initialize all relevant data
-cloudpath = 'file:///dev/shm/tmpam/rag_flat_v3_meshes/'
-global_params.wd = '/ssdscratch/pschuber/songbird/j0251/rag_flat_Jan2019_v3/'
+cloudpath = 'file:///dev/shm/tmpam/agglo2_meshes/'
+global_params.wd = '/ssdscratch/pschuber/songbird/j0251/j0251_72_seg_20210127_agglo2/'
 ssd = SuperSegmentationDataset()
 ssv_ids = ssd.ssv_ids
 n_proc = 150
@@ -46,7 +46,7 @@ volume_info = {
     }
 
 vol_sv = create_precomputed(cloudpath + "sv/", fill_missing=True, info=volume_info, mesh_dir='mesh')
-vol_sv.provenance.description = 'Whole j0251 dataset meshes'
+vol_sv.provenance.description = 'Whole j0251 dataset meshes, agglo2 acquisition'
 vol_sv.provenance.owners = ['kornfeld@neuro.mpg.de','amancu@neuro.mpg.de', 'hashir@neuro.mpg.de', 'lacatusu@neuro.mpg.de']
 vol_sv.commit_info()  # generates file://.../info json file
 vol_sv.commit_provenance()  # generates file://.../provenance json file
@@ -71,7 +71,6 @@ vol_sv.commit_provenance()  # generates file://.../provenance json file
 
 # split ssv_ids into multiple slices for processing
 chunksize = len(ssv_ids) // n_proc
-# chunksize = (len(ssv_ids)/2) // n_proc
 proc_slices = []
 
 for i_proc in range(n_proc):
@@ -116,11 +115,12 @@ sources = [mesh_source_sv] #[mesh_source_vc, mesh_source_mi, mesh_source_sj] [me
 # load meshes for the cells and put them into cloudvolume
 def process(slice):
     global ssv_ids
+    len_slice = len(ssv_ids[slice])
     for i, ssv_id in enumerate(ssv_ids[slice]):
         ssv = ssd.get_super_segmentation_object(int(ssv_id))
 
-        if i % 10 == 0:
-            print(f'Computing... {i} of slice')            
+        if i % 100 == 0:
+            print(f'Computing... {i} of slice of {len_slice}')            
 
         ssv.load_attr_dict()
 

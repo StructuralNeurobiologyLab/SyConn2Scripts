@@ -15,10 +15,10 @@ from taskqueue import LocalTaskQueue
 import igneous.task_creation as tc
 
 
-src_path = 'file:///dev/shm/tmpam/rag_flat_v3_meshes/sv/'
-dest_path = 'file:///ssdscratch/songbird/j0251/rag_flat_v3_meshes/sv/'
+src_path = 'file:///dev/shm/tmpam/agglo2_meshes/sv/'
+dest_path = 'file:///ssdscratch/songbird/j0251/agglo2_meshes/sv/'
 
-with LocalTaskQueue(parallel=150) as tq:
+with LocalTaskQueue(parallel=5) as tq:
     tasks = tc.create_sharded_multires_mesh_from_unsharded_tasks(
         src_path, 
         dest_path,
