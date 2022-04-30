@@ -15,36 +15,36 @@ from taskqueue import LocalTaskQueue
 import igneous.task_creation as tc
 
 
-# src_path = 'file:///dev/shm/tmpam/arexfs/sv/'
-# dest_path = 'file:///wholebrain/songbird/j0126/ssdscratch_wds/areaxfs_meshes/sv/'
+src_path = 'file:///dev/shm/tmpam/areaxfs/sv/'
+dest_path = 'file:///wholebrain/songbird/j0126/ssdscratch_wds/areaxfs_meshes/sv/'
 
-# with LocalTaskQueue(parallel=10) as tq:
-#     tasks = tc.create_sharded_multires_mesh_from_unsharded_tasks(
-#         src_path, 
-#         dest_path,
-#     )
-#     tq.insert_all(tasks)
+with LocalTaskQueue(parallel=10) as tq:
+    tasks = tc.create_sharded_multires_mesh_from_unsharded_tasks(
+        src_path, 
+        dest_path,
+    )
+    tq.insert_all(tasks)
 
-# src_path = 'file:///dev/shm/tmpam/arexfs/mi/'
-# dest_path = 'file:///wholebrain/songbird/j0126/ssdscratch_wds/areaxfs_meshes/mi/'
+src_path = 'file:///dev/shm/tmpam/areaxfs/mi/'
+dest_path = 'file:///wholebrain/songbird/j0126/ssdscratch_wds/areaxfs_meshes/mi/'
 
-# with LocalTaskQueue(parallel=10) as tq:
-#     tasks = tc.create_sharded_multires_mesh_from_unsharded_tasks(
-#         src_path, 
-#         dest_path,
-#     )
-#     tq.insert_all(tasks)
+with LocalTaskQueue(parallel=10) as tq:
+    tasks = tc.create_sharded_multires_mesh_from_unsharded_tasks(
+        src_path, 
+        dest_path,
+    )
+    tq.insert_all(tasks)
 
 
-# src_path = 'file:///dev/shm/tmpam/arexfs/vc/'
-# dest_path = 'file:///wholebrain/songbird/j0126/ssdscratch_wds/areaxfs_meshes/vc/'
+src_path = 'file:///dev/shm/tmpam/areaxfs/vc/'
+dest_path = 'file:///wholebrain/songbird/j0126/ssdscratch_wds/areaxfs_meshes/vc/'
 
-# with LocalTaskQueue(parallel=10) as tq:
-#     tasks = tc.create_sharded_multires_mesh_from_unsharded_tasks(
-#         src_path, 
-#         dest_path,
-#     )
-#     tq.insert_all(tasks)
+with LocalTaskQueue(parallel=10) as tq:
+    tasks = tc.create_sharded_multires_mesh_from_unsharded_tasks(
+        src_path, 
+        dest_path,
+    )
+    tq.insert_all(tasks)
 
 src_path = 'file:///dev/shm/tmpam/areaxfs/sj/'
 dest_path = 'file:///wholebrain/songbird/j0126/ssdscratch_wds/areaxfs_meshes/sj/'
