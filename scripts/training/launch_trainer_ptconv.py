@@ -4,7 +4,7 @@ from syconn.mp.batchjob_utils import batchjob_script
 if __name__ == '__main__':
     nfold = 10
     params = []
-    cnn_script = '/wholebrain/u/pschuber/devel/SyConn/syconn/cnn/cnn_celltype_ptcnv_j0251.py'
+    cnn_script = '/wholebrain/u/arother/dev/SyConn/syconn/cnn/cnn_celltype_ptcnv_j0251.py'
 
     # for npoints, ctx in ([50000, 20000], [25000, 20000], [25000, 4000], [5000, 20000], [75000, 20000],):
     #     scale = int(ctx / 10)
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     for npoints, ctx in ([50000, 20000],):
         scale = int(ctx / 10)
         for run in range(3):
-            base_dir = f'/wholebrain/scratch/pschuber/e3_trainings_convpoint_celltypes_j0251_rerunFeb21/myelin_ablation2/' \
+            base_dir = f'/wholebrain/scratch/arother/220715_celltype_training' \
                        f'celltype_pts{npoints}_ctx{ctx}'
             for cval in range(nfold):
                 save_root = f'{base_dir}/celltype_CV{cval}/'
@@ -47,6 +47,5 @@ if __name__ == '__main__':
     params = list(basics.chunkify_successive(params, 2))
     batchjob_script(params, 'launch_trainer', n_cores=10, additional_flags='--time=7-0 --qos=720h --gres=gpu:1',
                     disable_batchjob=False,
-                    batchjob_folder=f'/wholebrain/scratch/pschuber/batchjobs/launch_trainer_c'
-                                    f'elltypes_j0251_myelin_ablation/',
+                    batchjob_folder=f'/wholebrain/scratch/arother/220715_celltype_training',
                     remove_jobfolder=False, overwrite=True, exclude_nodes=['wb02', 'wb03', 'wb06'])
