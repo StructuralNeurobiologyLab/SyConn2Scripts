@@ -38,7 +38,7 @@ if __name__ == '__main__':
     for npoints, ctx in ([50000, 20000],):
         scale = int(ctx / 10)
         for run in range(3):
-            base_dir = f'/wholebrain/scratch/arother/220715_celltype_training' \
+            base_dir = f'/wholebrain/scratch/arother/220721_cnn_training' \
                        f'celltype_pts{npoints}_ctx{ctx}'
             for cval in range(nfold):
                 save_root = f'{base_dir}/celltype_CV{cval}/'
@@ -47,5 +47,5 @@ if __name__ == '__main__':
     params = list(basics.chunkify_successive(params, 2))
     batchjob_script(params, 'launch_trainer', n_cores=10, additional_flags='--time=7-0 --qos=720h --gres=gpu:1',
                     disable_batchjob=False,
-                    batchjob_folder=f'/wholebrain/scratch/arother/220715_celltype_training',
+                    batchjob_folder=f'/wholebrain/scratch/arother/220721_cnn_training',
                     remove_jobfolder=False, overwrite=True, exclude_nodes=['wb02', 'wb03', 'wb06'])

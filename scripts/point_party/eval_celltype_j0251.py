@@ -19,6 +19,7 @@ palette_ident = 'colorblind'
 
 
 # original validation splits, except for the myelin ablation
+"""
 valid_splits = {
 0: [195496045, 353029255, 128359794, 182568050, 333699391, 216385949,
     65167118,  21201152, 188009630, 200934266,  53808413, 137037221,
@@ -66,6 +67,14 @@ valid_splits = {
        245428934, 234357273,   6000389, 221031531, 360313118, 101934642,
         43976081,   1970756, 295682906, 311128103, 190854751, 184421996,
          7183873,  14304948, 199281958]}
+"""
+
+valid_splits = {3: [  21324985,1234246033,642210125,22572226,946881951,580061165
+,948907048,19366811,639915529,196738187,61710549,82937782
+,1433039555,19366766,37993733,1554336852,1130665247,37586442
+,1543539847,2123026143,4218392,239792676,154194912,2393956627
+,2398277884,2184701599,844683784,61609306,315877001,456403699
+,1190822162,881965586,1178542776]}
 
 
 def predict_celltype_gt(ssd_kwargs, **kwargs):
@@ -270,24 +279,27 @@ def plot_performance_summary(bd, include_special_inputs=False):
 if __name__ == '__main__':
     ncv_min = 0
     n_cv = 10
-    nclasses = 11
-    int2str_label = {ii: int2str_converter(ii, 'ctgt_j0251_v2') for ii in range(nclasses)}
-    str2int_label = {int2str_converter(ii, 'ctgt_j0251_v2'): ii for ii in range(nclasses)}
+    cval = [3]
+    nclasses = 15
+    int2str_label = {ii: int2str_converter(ii, 'ctgt_j0251_v3') for ii in range(nclasses)}
+    str2int_label = {int2str_converter(ii, 'ctgt_j0251_v3'): ii for ii in range(nclasses)}
     overwrite = True
-    n_runs = 3
+    n_runs = 1
 
     state_dict_fname = 'state_dict.pth'
-    wd = "/ssdscratch/pschuber/songbird/j0251/rag_flat_Jan2019_v3/"
-    bbase_dir = '/wholebrain/scratch/pschuber/syconn_v2_paper/figures/celltypes/e3_trainings_convpoint_celltypes_j0251_rerunFeb21_NEW2/'
+    wd = "/ssdscratch/songbird/j0251/j0251_72_seg_20210127_agglo2/"
+    bbase_dir = '/wholebrain/scratch/arother/220715_cnn_training/220718_ct_test26_gn_CV3_eval0/'
     all_res_paths = set()
     for ctx, npts, use_syntype, cellshape_only, use_myelin in [
-        (20000, 50000, False, False, True), (20000, 50000, True, False, True),
-        (20000, 50000, True, True, False), (20000, 25000, True, False, True), (20000, 75000, True, False, True),
-        (20000, 5000, True, False, True), (4000, 25000, True, False, True),
-        (20000, 50000, True, False, False), (20000, 25000, True, False, False),
+       # (20000, 50000, False, False, True), (20000, 50000, True, False, True),
+        #(20000, 50000, True, True, False), (20000, 25000, True, False, True), (20000, 75000, True, False, True),
+       # (20000, 5000, True, False, True), (4000, 25000, True, False, True),
+       # (20000, 50000, True, False, False), (20000, 25000, True, False, False),
+        (20000, 50000, True, False, False)
     ]:
         scale = ctx // 10
         skip_model = False
+        '''
         if not use_myelin and not cellshape_only:
             base_dir = f'{bbase_dir}/myelin_ablation/celltype_pts{npts}_ctx{ctx}'
         else:
@@ -296,12 +308,17 @@ if __name__ == '__main__':
             base_dir += '_cellshape_only'
         if not use_syntype:  # ignore if cell shape only
             base_dir += '_no_syntype'
-        mfold = base_dir + '/celltype_CV{}/celltype_pts_j0251v2_scale{}_nb{}_ctx{}_relu{}{}_gn_CV{}_eval{}/'
+        '''
+        base_dir = bbase_dir
+        #mfold = base_dir + '/celltype_CV{}/celltype_pts_j0251v2_scale{}_nb{}_ctx{}_relu{}{}_gn_CV{}_eval{}/'
+        mfold = base_dir
         for run in range(n_runs):
-            for CV in range(ncv_min, n_cv):
+            #for CV in range(ncv_min, n_cv):
+            for CV in cval:
                 mylein_str = "_myelin" if use_myelin else ""
-                mfold_complete = mfold.format(CV, scale, npts, ctx, "" if use_syntype else "_noSyntype",
-                                              "_cellshapeOnly" if cellshape_only else mylein_str, CV, run)
+                #mfold_complete = mfold.format(CV, scale, npts, ctx, "" if use_syntype else "_noSyntype",
+                                              #"_cellshapeOnly" if cellshape_only else mylein_str, CV, run)
+                mfold_complete = mfold
                 mpath = f'{mfold_complete}/{state_dict_fname}'
                 if not os.path.isfile(mpath):
                     msg = f"'{mpath}' not found. Skipping entire eval run for {base_dir}."
@@ -311,11 +328,12 @@ if __name__ == '__main__':
         # prepare GT
         check_train_ids = set()
         check_valid_ids = []
-        for CV in range(ncv_min, n_cv):
+        #for CV in range(ncv_min, n_cv):
+        for CV in cval:
             ccd = CellCloudDataJ0251(cv_val=CV)
             check_train_ids.update(set(ccd.splitting_dict['train']))
             check_valid_ids.extend(list(ccd.splitting_dict['valid']))
-        assert len(check_train_ids) == len(check_valid_ids)
+        #assert len(check_train_ids) == len(check_valid_ids)
         assert np.max(np.unique(check_valid_ids, return_counts=True)[1]) == 1
         target_names = [int2str_label[kk] for kk in range(nclasses)]
         csv_p = ccd.csv_p
@@ -327,17 +345,20 @@ if __name__ == '__main__':
         ssv_labels = np.array([str2int_label[el] for el in str_labels], dtype=np.uint16)
         ssd_kwargs = dict(working_dir=wd)
         ssd = SuperSegmentationDataset(**ssd_kwargs)
-        for redundancy in [1, 10, 20, 50][::-1]:
+        #for redundancy in [1, 10, 20, 50][::-1]:
+        for redundancy in [10]:
             perf_res_dc = collections.defaultdict(list)  # collect for each run
             for run in range(n_runs):
                 log = config.initialize_logging(f'log_eval{run}_sp{npts}k_redun{redundancy}', base_dir)
                 log.info(f'\nStarting evaluation of model with npoints={npts}, eval. run={run}.\n'
                          f'GT data at wd={wd}\n')
-                for CV in range(ncv_min, n_cv):
+                #for CV in range(ncv_min, n_cv):
+                for CV in cval:
                     mylein_str = "_myelin" if use_myelin else ""
-                    mfold_complete = mfold.format(CV, scale, npts, ctx, "" if use_syntype else "_noSyntype",
-                                                  "_cellshapeOnly" if cellshape_only else mylein_str, CV, run)
+                    # = mfold.format(CV, scale, npts, ctx, "" if use_syntype else "_noSyntype",
+                    #                              "_cellshapeOnly" if cellshape_only else mylein_str, CV, run)
                     mpath = f'{mfold_complete}/{state_dict_fname}'
+                    print(mpath)
                     assert os.path.isfile(mpath)
                     mkwargs, loader_kwargs = get_pt_kwargs(mpath)
                     assert loader_kwargs['npoints'] == npts
@@ -384,7 +405,8 @@ if __name__ == '__main__':
                         basics.write_obj2pkl(fname_pred, res_dc)
                 valid_ids, valid_ls, valid_preds, valid_certainty = [], [], [], []
 
-                for CV in range(ncv_min, n_cv):
+                #for CV in range(ncv_min, n_cv):
+                for CV in cval:
                     ccd = CellCloudDataJ0251(cv_val=CV)
                     split_dc = ccd.splitting_dict
                     if use_myelin or cellshape_only:  # use old splits
