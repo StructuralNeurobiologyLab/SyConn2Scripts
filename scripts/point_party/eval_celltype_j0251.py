@@ -14,6 +14,7 @@ from syconn.reps.super_segmentation_dataset import SuperSegmentationDataset
 from syconn.handler.prediction_pts import predict_pts_plain, pts_loader_scalar_infer,\
     pts_loader_scalar, pts_pred_scalar_nopostproc, get_celltype_model_pts, get_pt_kwargs
 import os
+import pandas as pd
 
 palette_ident = 'colorblind'
 
@@ -68,13 +69,14 @@ valid_splits = {
         43976081,   1970756, 295682906, 311128103, 190854751, 184421996,
          7183873,  14304948, 199281958]}
 """
-
+'''
 valid_splits = {3: [  21324985,1234246033,642210125,22572226,946881951,580061165
 ,948907048,19366811,639915529,196738187,61710549,82937782
 ,1433039555,19366766,37993733,1554336852,1130665247,37586442
 ,1543539847,2123026143,4218392,239792676,154194912,2393956627
 ,2398277884,2184701599,844683784,61609306,315877001,456403699
 ,1190822162,881965586,1178542776]}
+'''
 
 
 def predict_celltype_gt(ssd_kwargs, **kwargs):
@@ -279,7 +281,7 @@ def plot_performance_summary(bd, include_special_inputs=False):
 if __name__ == '__main__':
     ncv_min = 0
     n_cv = 10
-    cval = [3]
+    #cval = [3]
     nclasses = 15
     int2str_label = {ii: int2str_converter(ii, 'ctgt_j0251_v3') for ii in range(nclasses)}
     str2int_label = {int2str_converter(ii, 'ctgt_j0251_v3'): ii for ii in range(nclasses)}
@@ -288,13 +290,13 @@ if __name__ == '__main__':
 
     state_dict_fname = 'state_dict.pth'
     wd = "/ssdscratch/songbird/j0251/j0251_72_seg_20210127_agglo2/"
-    bbase_dir = '/wholebrain/scratch/arother/220715_cnn_training/220718_ct_test26_gn_CV3_eval0/'
+    bbase_dir = '/wholebrain/scratch/arother/220721_cnn_trainingcelltype_pts50000_ctx20000/'
     all_res_paths = set()
     for ctx, npts, use_syntype, cellshape_only, use_myelin in [
-       # (20000, 50000, False, False, True), (20000, 50000, True, False, True),
+        #(20000, 50000, False, False, True), (20000, 50000, True, False, True),
         #(20000, 50000, True, True, False), (20000, 25000, True, False, True), (20000, 75000, True, False, True),
-       # (20000, 5000, True, False, True), (4000, 25000, True, False, True),
-       # (20000, 50000, True, False, False), (20000, 25000, True, False, False),
+        #(20000, 5000, True, False, True), (4000, 25000, True, False, True),
+        #(20000, 50000, True, False, False), (20000, 25000, True, False, False),
         (20000, 50000, True, False, False)
     ]:
         scale = ctx // 10
@@ -310,15 +312,15 @@ if __name__ == '__main__':
             base_dir += '_no_syntype'
         '''
         base_dir = bbase_dir
-        #mfold = base_dir + '/celltype_CV{}/celltype_pts_j0251v2_scale{}_nb{}_ctx{}_relu{}{}_gn_CV{}_eval{}/'
-        mfold = base_dir
+        mfold = base_dir + '/celltype_CV{}/celltype_pts_j0251v4_scale{}_nb{}_ctx{}_relu{}{}_gn_CV{}_eval{}/'
+        #mfold = base_dir
         for run in range(n_runs):
-            #for CV in range(ncv_min, n_cv):
-            for CV in cval:
+            for CV in range(ncv_min, n_cv):
+            #for CV in cval:
                 mylein_str = "_myelin" if use_myelin else ""
-                #mfold_complete = mfold.format(CV, scale, npts, ctx, "" if use_syntype else "_noSyntype",
-                                              #"_cellshapeOnly" if cellshape_only else mylein_str, CV, run)
-                mfold_complete = mfold
+                mfold_complete = mfold.format(CV, scale, npts, ctx, "" if use_syntype else "_noSyntype",
+                                              "_cellshapeOnly" if cellshape_only else mylein_str, CV, run)
+                #mfold_complete = mfold
                 mpath = f'{mfold_complete}/{state_dict_fname}'
                 if not os.path.isfile(mpath):
                     msg = f"'{mpath}' not found. Skipping entire eval run for {base_dir}."
@@ -328,8 +330,8 @@ if __name__ == '__main__':
         # prepare GT
         check_train_ids = set()
         check_valid_ids = []
-        #for CV in range(ncv_min, n_cv):
-        for CV in cval:
+        for CV in range(ncv_min, n_cv):
+        #for CV in cval:
             ccd = CellCloudDataJ0251(cv_val=CV)
             check_train_ids.update(set(ccd.splitting_dict['train']))
             check_valid_ids.extend(list(ccd.splitting_dict['valid']))
@@ -345,18 +347,18 @@ if __name__ == '__main__':
         ssv_labels = np.array([str2int_label[el] for el in str_labels], dtype=np.uint16)
         ssd_kwargs = dict(working_dir=wd)
         ssd = SuperSegmentationDataset(**ssd_kwargs)
-        #for redundancy in [1, 10, 20, 50][::-1]:
-        for redundancy in [10]:
+        for redundancy in [1, 10, 20, 50][::-1]:
+        #for redundancy in [10]:
             perf_res_dc = collections.defaultdict(list)  # collect for each run
             for run in range(n_runs):
                 log = config.initialize_logging(f'log_eval{run}_sp{npts}k_redun{redundancy}', base_dir)
                 log.info(f'\nStarting evaluation of model with npoints={npts}, eval. run={run}.\n'
                          f'GT data at wd={wd}\n')
-                #for CV in range(ncv_min, n_cv):
-                for CV in cval:
+                for CV in range(ncv_min, n_cv):
+                #for CV in cval:
                     mylein_str = "_myelin" if use_myelin else ""
-                    # = mfold.format(CV, scale, npts, ctx, "" if use_syntype else "_noSyntype",
-                    #                              "_cellshapeOnly" if cellshape_only else mylein_str, CV, run)
+                    mfold_complete = mfold.format(CV, scale, npts, ctx, "" if use_syntype else "_noSyntype",
+                                                  "_cellshapeOnly" if cellshape_only else mylein_str, CV, run)
                     mpath = f'{mfold_complete}/{state_dict_fname}'
                     print(mpath)
                     assert os.path.isfile(mpath)
@@ -365,9 +367,11 @@ if __name__ == '__main__':
                     log.info(f'model_kwargs={mkwargs}')
                     ccd = CellCloudDataJ0251(cv_val=CV)
                     split_dc = ccd.splitting_dict
+                    '''
                     if use_myelin or cellshape_only:  # use old splits
                         split_dc['valid'] = valid_splits[CV]
                         del split_dc['train']
+                    '''
                     map_myelin = use_myelin
                     if map_myelin:
                         assert "_myelin" in mpath
@@ -405,13 +409,15 @@ if __name__ == '__main__':
                         basics.write_obj2pkl(fname_pred, res_dc)
                 valid_ids, valid_ls, valid_preds, valid_certainty = [], [], [], []
 
-                #for CV in range(ncv_min, n_cv):
-                for CV in cval:
+                for CV in range(ncv_min, n_cv):
+                #for CV in cval:
                     ccd = CellCloudDataJ0251(cv_val=CV)
                     split_dc = ccd.splitting_dict
+                    '''
                     if use_myelin or cellshape_only:  # use old splits
                         split_dc['valid'] = valid_splits[CV]
                         del split_dc['train']
+                    '''
                     mylein_str = "_myelin" if use_myelin else ""
                     mfold_complete = mfold.format(CV, scale, npts, ctx, "" if use_syntype else "_noSyntype",
                                                   "_cellshapeOnly" if cellshape_only else mylein_str, CV, run)
@@ -446,7 +452,10 @@ if __name__ == '__main__':
                 perf_res_dc['cert_correct'].append(valid_certainty[valid_preds == valid_ls])
                 perf_res_dc['cert_incorrect'].append(valid_certainty[valid_preds != valid_ls])
                 log.info(classification_report(valid_ls, valid_preds, labels=np.arange(nclasses), target_names=target_names))
-                log.info(confusion_matrix(valid_ls, valid_preds, labels=np.arange(nclasses)))
+                conf_matrix = confusion_matrix(valid_ls, valid_preds, labels=np.arange(nclasses))
+                log.info(conf_matrix)
+                conf_pd = pd.DataFrame(conf_matrix, columns=target_names, index=target_names)
+                conf_pd.to_csv(base_dir + "conf_matrix_%i.csv" % redundancy)
                 log.info(f'Mean certainty correct:\t{np.mean(valid_certainty[valid_preds == valid_ls])}\n'
                          f'Mean certainty incorrect:\t{np.mean(valid_certainty[valid_preds != valid_ls])}')
                 log.info(f'Incorrectly predicted IDs (ID, label, prediction): '
