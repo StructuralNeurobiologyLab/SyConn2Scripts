@@ -49,7 +49,7 @@ if __name__ == '__main__':
     #disable_batchjob = False,
     #batchjob_folder = f'cajal/nvmescratch/tmp/arother/220809_cnn_training',
     #remove_jobfolder = False, overwrite = True, exclude_nodes = ['wb02', 'wb03', 'wb06'])
-    batchjob_script(params, 'launch_trainer', n_cores=10, additional_flags='--time=2-0 --gres=gpu:1',
+    batchjob_script(params, 'launch_trainer', n_cores=10, additional_flags='--time=7-0 --gres=gpu:1',
                     disable_batchjob=False,
                     batchjob_folder=f'cajal/nvmescratch/tmp/arother/220809_cnn_training',
                     remove_jobfolder=False, overwrite=True)
