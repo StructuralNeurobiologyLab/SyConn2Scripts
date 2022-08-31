@@ -38,7 +38,7 @@ if __name__ == '__main__':
     for npoints, ctx in ([50000, 20000],):
         scale = int(ctx / 10)
         for run in range(3):
-            base_dir = f'cajal/nvmescratch/tmp/arother/220809_cnn_training' \
+            base_dir = f'cajal/nvmescratch/users/arother/cnn_training/220809_cnn_training' \
                        f'celltype_pts{npoints}_ctx{ctx}'
             for cval in range(nfold):
                 save_root = f'{base_dir}/celltype_CV{cval}/'
@@ -51,5 +51,5 @@ if __name__ == '__main__':
     #remove_jobfolder = False, overwrite = True, exclude_nodes = ['wb02', 'wb03', 'wb06'])
     batchjob_script(params, 'launch_trainer', n_cores=10, additional_flags='--time=7-0 --gres=gpu:1',
                     disable_batchjob=False,
-                    batchjob_folder=f'cajal/nvmescratch/tmp/arother/220809_cnn_training',
+                    batchjob_folder=f'cajal/nvmescratch/users/arother/cnn_training/220809_cnn_training',
                     remove_jobfolder=False, overwrite=True)
