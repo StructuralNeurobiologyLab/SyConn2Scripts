@@ -69,15 +69,69 @@ valid_splits = {
         43976081,   1970756, 295682906, 311128103, 190854751, 184421996,
          7183873,  14304948, 199281958]}
 """
-'''
-valid_splits = {3: [  21324985,1234246033,642210125,22572226,946881951,580061165
-,948907048,19366811,639915529,196738187,61710549,82937782
-,1433039555,19366766,37993733,1554336852,1130665247,37586442
-,1543539847,2123026143,4218392,239792676,154194912,2393956627
-,2398277884,2184701599,844683784,61609306,315877001,456403699
-,1190822162,881965586,1178542776]}
-'''
 
+#valid splits with v6 gt:
+
+valid_splits = {0: [298802518, 1084372433,   82967407,  451680496,   58306741,   13733529,
+                    20650554,    5803292,   41365295, 1430238776,   78211969, 1858603352,
+                    6849290,  992702734, 1879622313,  432988156,  662759023, 1478187822,
+                    1306551312,   70246817,  173325651, 1885902289,  342564861, 2186089387,
+                    2396455428,  730205247, 1143820677,  61440710,   32494160,  237059539,
+                    2281602503,  596830343, 2416261519],
+                1: [1179488043,   37215277,  883348491,   52330826,   17415252,  686948959,
+                    1469986452,   26958335,  767221938,  134996903,  829534245,   91746880,
+                    412743536, 1041487485,   52433603, 1299023959,   77401600, 1539287734,
+                    600576536,   50614045,  639982340,  232031927,   51021023, 1287960029,
+                    2396455413,  775753802,  471383931,   74329347,   38429927,   54287778,
+                    1389349351, 1235460297, 2414844486],
+                2: [884326921,   42381287,   11406245,   75546553, 1872809754, 844007128,
+                    1260059508,   42280521, 1126849047,   42816115,   43997381, 1506662741,
+                    32356701,  707429821, 1111633762,   24194587,  266718802, 2211254176,
+                    1647257354,   28209513,   63431281,  481134355,   35531229,  154130123,
+                    2392879043,  468147607,  736243930,   48621163, 1110992528,  327784276,
+                    657528417, 1891602548, 2017622103],
+                3: [21324985,1234246033,642210125,22572226,946881951,580061165,
+                    948907048,19366811,639915529,196738187,61710549,82937782,
+                    1433039555,19366766,37993733,1554336852,1130665247,37586442,
+                    1543539847,2123026143,4218392,239792676,154194912,2393956627,
+                    2398277884,2184701599,844683784,61609306,315877001,456403699,
+                    1190822162,881965586,1178542776],
+                4: [45991236, 1548500233, 1457569565,   73452048,   23552465,  167456363,
+                    46932365,  755170042 ,1400211748, 485690128,   10157981,  824236472,
+                    91876357,  214386845,  396750419, 1130226186, 2458163814,  615350170,
+                    38297192,  327956029,   39847003,   62152255, 2211357026, 2291926857,
+                    2390854023,  730271543, 1014766362,  358218760,  441019367, 1739264227,
+                    2442271664, 1482336022],
+                5: [1548026851,  452894617,  747983832,   79998766,   33643243,   50511113,
+                    61912928,    7626258,   18962132,  558972341, 2520142908,   51288310,
+                    993477875, 1557170527, 1460436075,  651454283,   37923853,   18222490,
+                    74565413,  377048103, 1183399702,  479415063,   20718752,    4457066,
+                    2110074037,  159828922,  156018998,   97103815,   72912236,  570478414,
+                    673082704, 1613380765],
+                6: [25544419,    5668338, 1227495256, 1736632955,  291719074, 1479772383,
+                    1095370130, 1288095636,   15388259, 1267478474,    4488613,  390072183,
+                    53144390,  260005841, 2023421752, 1181678413,   79021569, 1716356091,
+                    242660426, 1482944565,  328866567,  775215267,    4554974,  159831450,
+                    2392709168,  616904585, 1635783011, 1407940343,  232943423,  630062872,
+                    1075501300, 1706977484],
+                7: [1025055349,   62489778,   76693645,   25372570,  247590206,   15419206,
+                    950625605,  338244962, 1389045173, 1811539294, 1109272796, 1357834496,
+                    303188818,  687119417,   15420661,   49666859, 1298013841, 1459053371,
+                    60801698,   44941740,    4555676, 1185827504, 2392711337, 2398614285,
+                    466492792,   15622533,  353835929,  828623925,   10965555, 2387815155,
+                    784592203, 1277670955],
+                8: [436157555,  468515837,    4423089,   67046128,   52229570, 2289634586,
+                    59688447,   13394835, 1369949067,  175077676,  971477608,  875118591,
+                    2193474680, 2234435544,  247147704,   38297008, 1823786223,  730206659,
+                    48654125,  795252861,   39111453,  414633662,   26353030,  354137851,
+                    1391910853,  446586134,  736208384,  986559723,  977686149, 1168217589,
+                    681180008, 2172455591],
+                9: [1613044317,   63532486,    4352945,   54493399, 1786233482,  984230591,
+                    26790127, 1274157732,  825519277,  138203264,   19771708,   45452841,
+                    968947981,   52131787,   50648088, 1328107641, 1594693963, 2106254401,
+                    883552299,   33605129, 1101410378, 1474000401,  236420399, 1391946810,
+                    2088339237, 2391097043,   50542644,  627430241, 1943628702, 2459412470,
+                    1943931011, 2394704241]}
 
 def predict_celltype_gt(ssd_kwargs, **kwargs):
     """
@@ -290,7 +344,7 @@ if __name__ == '__main__':
 
     state_dict_fname = 'state_dict.pth'
     wd = "/ssdscratch/songbird/j0251/j0251_72_seg_20210127_agglo2/"
-    bbase_dir = '/wholebrain/scratch/arother/220721_cnn_trainingcelltype_pts50000_ctx20000/'
+    bbase_dir = 'cajal/nvmescratch/users/arother/cnn_training/220927_cnn_training_dijkstra/'
     all_res_paths = set()
     for ctx, npts, use_syntype, cellshape_only, use_myelin in [
         #(20000, 50000, False, False, True), (20000, 50000, True, False, True),
@@ -301,7 +355,6 @@ if __name__ == '__main__':
     ]:
         scale = ctx // 10
         skip_model = False
-        '''
         if not use_myelin and not cellshape_only:
             base_dir = f'{bbase_dir}/myelin_ablation/celltype_pts{npts}_ctx{ctx}'
         else:
@@ -310,9 +363,12 @@ if __name__ == '__main__':
             base_dir += '_cellshape_only'
         if not use_syntype:  # ignore if cell shape only
             base_dir += '_no_syntype'
-        '''
         base_dir = bbase_dir
-        mfold = base_dir + '/celltype_CV{}/celltype_pts_j0251v4_scale{}_nb{}_ctx{}_relu{}{}_gn_CV{}_eval{}/'
+        #mfold = base_dir + '/celltype_CV{}/celltype_pts_j0251v4_scale{}_nb{}_ctx{}_relu{}{}_gn_CV{}_eval{}/'
+        #mfold = base_dir + '/celltype_pts_j0251v4_scale{}_nb{}_ctx{}_relu_gn_CV{}_eval0/'
+        mfold = base_dir + '/celltype_pts{npts}_ctx{ctx}/celltype_CV{}/celltype_pts_j0251v4_scale{}_nb{}_ctx{}_relu{}{}_gn_CV{}_eval{}/'
+
+
         #mfold = base_dir
         for run in range(n_runs):
             for CV in range(ncv_min, n_cv):
@@ -320,6 +376,7 @@ if __name__ == '__main__':
                 mylein_str = "_myelin" if use_myelin else ""
                 mfold_complete = mfold.format(CV, scale, npts, ctx, "" if use_syntype else "_noSyntype",
                                               "_cellshapeOnly" if cellshape_only else mylein_str, CV, run)
+                #mfold_complete = mfold.format(scale, npts, ctx, CV)
                 #mfold_complete = mfold
                 mpath = f'{mfold_complete}/{state_dict_fname}'
                 if not os.path.isfile(mpath):
@@ -358,7 +415,8 @@ if __name__ == '__main__':
                 #for CV in cval:
                     mylein_str = "_myelin" if use_myelin else ""
                     mfold_complete = mfold.format(CV, scale, npts, ctx, "" if use_syntype else "_noSyntype",
-                                                  "_cellshapeOnly" if cellshape_only else mylein_str, CV, run)
+                        "_cellshapeOnly" if cellshape_only else mylein_str, CV, run)
+                    #mfold_complete = mfold.format(scale, npts, ctx, CV)
                     mpath = f'{mfold_complete}/{state_dict_fname}'
                     print(mpath)
                     assert os.path.isfile(mpath)
@@ -367,11 +425,9 @@ if __name__ == '__main__':
                     log.info(f'model_kwargs={mkwargs}')
                     ccd = CellCloudDataJ0251(cv_val=CV)
                     split_dc = ccd.splitting_dict
-                    '''
                     if use_myelin or cellshape_only:  # use old splits
                         split_dc['valid'] = valid_splits[CV]
                         del split_dc['train']
-                    '''
                     map_myelin = use_myelin
                     if map_myelin:
                         assert "_myelin" in mpath
@@ -413,14 +469,13 @@ if __name__ == '__main__':
                 #for CV in cval:
                     ccd = CellCloudDataJ0251(cv_val=CV)
                     split_dc = ccd.splitting_dict
-                    '''
                     if use_myelin or cellshape_only:  # use old splits
                         split_dc['valid'] = valid_splits[CV]
                         del split_dc['train']
-                    '''
                     mylein_str = "_myelin" if use_myelin else ""
                     mfold_complete = mfold.format(CV, scale, npts, ctx, "" if use_syntype else "_noSyntype",
                                                   "_cellshapeOnly" if cellshape_only else mylein_str, CV, run)
+                    #mfold_complete = mfold.format(scale, npts, ctx, CV)
                     mpath = f'{mfold_complete}/{state_dict_fname}'
                     assert os.path.isfile(mpath)
                     fname_pred = f'{os.path.split(mpath)[0]}/ctgt_v4_splitting_cv{CV}_redun{redundancy}_{run}_10fold_PRED.pkl'
