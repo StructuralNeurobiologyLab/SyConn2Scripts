@@ -344,7 +344,7 @@ if __name__ == '__main__':
 
     state_dict_fname = 'state_dict.pth'
     wd = "/ssdscratch/songbird/j0251/j0251_72_seg_20210127_agglo2/"
-    bbase_dir = 'cajal/nvmescratch/users/arother/cnn_training/220927_cnn_training_dijkstra/'
+    bbase_dir = 'cajal/nvmescratch/users/arother/cnn_training/221010_cnn_training_dijkstra/'
     all_res_paths = set()
     for ctx, npts, use_syntype, cellshape_only, use_myelin in [
         #(20000, 50000, False, False, True), (20000, 50000, True, False, True),
@@ -366,7 +366,7 @@ if __name__ == '__main__':
         base_dir = bbase_dir
         #mfold = base_dir + '/celltype_CV{}/celltype_pts_j0251v4_scale{}_nb{}_ctx{}_relu{}{}_gn_CV{}_eval{}/'
         #mfold = base_dir + '/celltype_pts_j0251v4_scale{}_nb{}_ctx{}_relu_gn_CV{}_eval0/'
-        mfold = base_dir + '/celltype_pts{npts}_ctx{ctx}/celltype_CV{}/celltype_pts_j0251v4_scale{}_nb{}_ctx{}_relu{}{}_gn_CV{}_eval{}/'
+        mfold = base_dir + f'/celltype_pts{npts}_ctx{ctx}' +'/celltype_CV{}/celltype_pts_j0251v4_scale{}_nb{}_ctx{}_relu{}{}_gn_CV{}_eval{}/'
 
 
         #mfold = base_dir
