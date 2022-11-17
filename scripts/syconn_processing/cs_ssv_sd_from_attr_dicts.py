@@ -37,7 +37,7 @@ for ji in range(100):
 
 excluded_ssv_id_pairs = np.array(excluded_ssv_id_pairs, dtype = 'object')
 
-np.save(file=f'{f_name}/excluded_ssv_id_pairs.pkl', arr=excluded_ssv_id_pairs)
+np.save(file=f'{f_name}/excluded_ssv_id_pairs.npy', arr=excluded_ssv_id_pairs)
 
 log.info(('Excluded ssv id pairs saved'))
 del sd_cs_ssv
