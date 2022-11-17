@@ -1,7 +1,7 @@
 #call exec_syn run_syn_generation
 #generates syn_ssv dataset but here with cs_dataset already existing
 
-
+from syconn.handler.config import initialize_logging
 from syconn import global_params
 from syconn.exec.exec_syns import  run_syn_generation
 
@@ -12,5 +12,12 @@ cellorganelle_transf_funcs = dict(sj=lambda x: (x == 1).astype('u1'),
 
 global_params.wd = "cajal/nvmescratch/projects/data/songbird_tmp/j0251/j0251_72_seg_20210127_agglo2_syn_20220811"
 
+f_name = f'{global_params.wd}/syn_ssv_0'
+
+log = initialize_logging('221117 generating syn_ssv sd', log_dir=f_name + '/logs/')
+log.info(f'start generation with cell organell transfer func {cellorganelle_transf_funcs}')
+
 run_syn_generation(transf_func_sj_seg=cellorganelle_transf_funcs['sj'], exclude_nodes=['cajalg002', 'cajalg003', 'cajalg004', 'cajalg005', 'cajalg006', 'cajalg007', 'cajalg008', 'cajalg009',
                                               'cajalg010', 'cajalg011', 'cajalg012', 'cajalg013', 'cajalg014', 'cajalg015'])
+
+log.info('syn_ssv generation finished')
