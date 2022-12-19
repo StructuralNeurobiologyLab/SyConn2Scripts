@@ -12,11 +12,11 @@ from tqdm import tqdm
 from scipy.spatial import cKDTree
 
 
-v6_gt = pd.read_csv("wholebrain/songbird/j0251/groundtruth/celltypes/j0251_celltype_gt_v6_j0251_72_seg_20210127_agglo2_IDs.csv", names = ["cellids", "celltype"])
+v6_gt = pd.read_csv("cajal/nvmescratch/projects/songbird/j0251/groundtruth/celltypes/j0251_celltype_gt_v6_j0251_72_seg_20210127_agglo2_IDs.csv", names = ["cellids", "celltype"])
 cellids = np.array(v6_gt["cellids"])
-filename = "cajal/nvmescratch/users/arother/cnn_training/hybrid_clouds/"
+filename = "cajal/nvmescratch/projects/data/songbird_tmp/j0251/j0251_72_seg_20210127_agglo2_syn_20220811/celltype_training/hybrid_clouds_gt/"
 
-global_params.wd = "/ssdscratch/songbird/j0251/j0251_72_seg_20210127_agglo2"
+global_params.wd = "cajal/nvmescratch/projects/data/songbird_tmp/j0251/j0251_72_seg_20210127_agglo2_syn_20220811"
 ssd = SuperSegmentationDataset(working_dir=global_params.config.working_dir)
 
 ssd_kwargs = dict(working_dir=global_params.wd, version='ctgt_v4')
@@ -61,10 +61,10 @@ def get_cKDtrees_pkl(cellid):
     write_obj2pkl("%s/%i_kdtree.pkl" % (filename, cellid), ckdtree)
 
 p = pool.Pool()
-#p.map(partial(get_hybrid_clouds, use_myelin = use_myelin, use_syntype = use_syntype,
- #                    cellshape_only = cellshape_only, filename = filename), tqdm(cellids))
+p.map(partial(get_hybrid_clouds, use_myelin = use_myelin, use_syntype = use_syntype,
+                     cellshape_only = cellshape_only, filename = filename), tqdm(cellids))
 
 
-p.map(get_cKDtrees_pkl, tqdm(cellids))
+#p.map(get_cKDtrees_pkl, tqdm(cellids))
 
 
