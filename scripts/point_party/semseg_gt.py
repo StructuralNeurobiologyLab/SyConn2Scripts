@@ -287,10 +287,13 @@ def labels2mesh(args):
             else:
                 sso.save_skeleton_to_kzip(kzip_out, additional_keys=['source', 'orig_labels'])
             # save colored mesh
-            col_lookup = {0: (125, 125, 125, 255), 1: (255, 125, 125, 255), 2: (125, 255, 125, 255),
-                          3: (125, 125, 255, 255),
-                          4: (255, 255, 125, 255), 5: (125, 255, 255, 255), 6: (255, 125, 255, 255), 7: (0, 0, 0, 255),
-                          8: (255, 0, 0, 255)}
+            #new color lookup from HA with more gt classes
+            col_lookup = {0: (76, 92, 158, 255), 1: (255, 125, 125, 255), 2: (125, 255, 125, 255),
+                          3: (113, 98, 227, 255),
+                          4: (255, 255, 125, 255), 5: (125, 255, 255, 255), 6: (255, 125, 255, 255),
+                          7: (168, 0, 20, 255),
+                          8: (0, 97, 10, 255), 9: (255, 205, 130, 255), 10: (168, 0, 95, 255), 11: (191, 191, 191, 255),
+                          12: (255, 127, 15, 255)}
             cols = np.array([col_lookup[el] for el in vert_l.squeeze()], dtype=np.uint8)
             write_mesh2kzip(kzip_out, indices.astype(np.float32),
                             vertices.astype(np.float32), None, cols, f'{sso_id}.ply')
