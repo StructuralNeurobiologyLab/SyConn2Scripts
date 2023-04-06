@@ -12,7 +12,7 @@ cellorganelle_transf_funcs = dict(sj=lambda x: (x == 1).astype('u1'),
 
 global_params.wd = "cajal/nvmescratch/projects/data/songbird_tmp/j0251/j0251_72_seg_20210127_agglo2_syn_20220811"
 
-f_name = f'{global_params.wd}/syn_ssv_0'
+f_name = f'{global_params.wd}'
 
 log = initialize_logging('230406 generating syn_ssv sd, props', log_dir=f_name + '/logs/')
 log.info(f'start generation with cell organell transfer func {cellorganelle_transf_funcs}')
