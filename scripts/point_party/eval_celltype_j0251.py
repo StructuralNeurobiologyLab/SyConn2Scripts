@@ -343,8 +343,8 @@ if __name__ == '__main__':
     n_runs = 1
 
     state_dict_fname = 'state_dict.pth'
-    wd = "/ssdscratch/songbird/j0251/j0251_72_seg_20210127_agglo2/"
-    bbase_dir = 'cajal/nvmescratch/users/arother/cnn_training/221010_cnn_training_dijkstra/'
+    wd = "cajal/nvmescratch/projects/data/songbird_tmp/j0251/j0251_72_seg_20210127_agglo2_syn_20220811"
+    bbase_dir = f'{wd}/celltype_training/19-04-23_celltype_cross_val/'
     all_res_paths = set()
     for ctx, npts, use_syntype, cellshape_only, use_myelin in [
         #(20000, 50000, False, False, True), (20000, 50000, True, False, True),
