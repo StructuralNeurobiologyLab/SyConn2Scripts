@@ -340,7 +340,7 @@ if __name__ == '__main__':
     int2str_label = {ii: int2str_converter(ii, 'ctgt_j0251_v3') for ii in range(nclasses)}
     str2int_label = {int2str_converter(ii, 'ctgt_j0251_v3'): ii for ii in range(nclasses)}
     overwrite = True
-    n_runs = 1
+    n_runs = 3
 
     state_dict_fname = 'state_dict.pth'
     wd = "cajal/nvmescratch/projects/data/songbird_tmp/j0251/j0251_72_seg_20210127_agglo2_syn_20220811"
