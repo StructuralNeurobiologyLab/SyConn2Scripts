@@ -10,8 +10,8 @@ global_params.wd = "cajal/nvmescratch/projects/data/songbird_tmp/j0251/j0251_72_
 f_name = f'{global_params.wd}/syn_ssv_0'
 
 log = initialize_logging('230524 matrix export + spinehead volume calculation', log_dir=f_name + '/logs/')
-log.info('Start spinehead volume calculation')
-run_spinehead_volume_calc()
+#log.info('Start spinehead volume calculation')
+#run_spinehead_volume_calc()
 log.info(f'start matrix export, no ssd.save_dataset_deep')
 log.info(f'Matrix export done with synapses from this wd, updated axoness_avg10000 prediction and same spiness prediction as agglo2')
 

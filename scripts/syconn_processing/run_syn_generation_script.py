@@ -16,9 +16,7 @@ if __name__ == '__main__':
     f_name = f'{global_params.wd}'
 
     log = initialize_logging('230524 generating syn_ssv sd, props', log_dir=f_name + '/logs/')
-    log.info(f'start generation with cell organell transfer func {cellorganelle_transf_funcs}, syn and syn_ssv generating done starting 18th April 23. \n'
-             f'Mapped vertex spiness labels from agglo2 to this working directory for spiness caching. \n'
-             f' Will start syn generation from map_objects_from_synssv_partners.')
+    log.info(f'start generation with cell organell transfer func {cellorganelle_transf_funcs}, syn and syn_ssv generating done starting 18th April 23. \n')
 
     run_syn_generation(transf_func_sj_seg=cellorganelle_transf_funcs['sj'], exclude_nodes=['cajalg002', 'cajalg003', 'cajalg004', 'cajalg005', 'cajalg006', 'cajalg007'], overwrite=False)
 
